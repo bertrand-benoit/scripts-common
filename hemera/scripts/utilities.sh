@@ -28,3 +28,12 @@ function info() {
   [ $verbose -eq 0 ] && return 0
   writeMessage "$1"
 }
+
+# usage: checkBin <binary name/path> [<binary name/path2> ... <binary name/path>N]
+function checkBin() {
+  info "Checking binary: $1"
+  which "$1" >/dev/null 2>&1 && return 0
+  writeMessage "Unable to find binary $1."
+  return 1
+}
+

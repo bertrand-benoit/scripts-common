@@ -65,3 +65,24 @@ function getConfigValue() {
 function checkAvailableValue() {
   [ $( echo "$1" |grep -w "$2" |wc -l ) -eq 1 ]
 }
+
+# usage: getConfigPath <config key>
+function getConfigPath() {
+  value=$( getConfigValue "$1" ) || return 1
+  
+  # Checks if it is an absolute path.
+  if [[ "$value" =~ "^\/.*$" ]]; then
+    echo "$value"
+    return 0
+  fi
+  
+  # Checks if it is a "simple" path.
+  if [[ "$value" =~ "^[^\/]*$" ]]; then
+    echo "$value"
+    return 0
+  fi
+  
+  # Prefixes with Hemera install directory path.
+  echo "$installDir/$value"  
+}
+

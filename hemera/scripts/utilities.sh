@@ -24,9 +24,18 @@ function writeMessage() {
   echo $echoOption "$messageTime $message"
 }
 
+# usage: info <message> [<0 or 1>]
+# Shows message only if verbose is ON.
 function info() {
   [ $verbose -eq 0 ] && return 0
-  writeMessage "$1"
+  writeMessage $*
+}
+
+# usage: errorMessage <message> [<exit code>]
+# Shows error message and exits.
+function errorMessage() {
+  echo -e "Error: $1" >&2
+  exit ${2:-100}
 }
 
 # usage: checkBin <binary name/path> [<binary name/path2> ... <binary name/path>N]

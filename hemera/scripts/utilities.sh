@@ -7,9 +7,10 @@
 #########################
 ## Global variables
 verbose=0
+category="general"
 
 #########################
-## Functions
+## Functions - various
 
 # usage: writeMessage <message> [<0 or 1>]
 # 0: keep on the same line
@@ -21,20 +22,24 @@ function writeMessage() {
   echoOption="-e"
   [ ! -z "$2" ] && [ "$2" -eq 0 ] && echoOption="-ne"
 
-  echo $echoOption "$messageTime $message"
+  echo $echoOption "$messageTime  [$category]  $message"
 }
 
 # usage: info <message> [<0 or 1>]
 # Shows message only if verbose is ON.
 function info() {
   [ $verbose -eq 0 ] && return 0
-  writeMessage $*
+  local message="$1"
+  shift
+  writeMessage "$message" $*
 }
 
 # usage: errorMessage <message> [<exit code>]
 # Shows error message and exits.
 function errorMessage() {
-  echo -e "Error: $1" >&2
+  local message="$1"
+  messageTime=$(date +"%d/%m/%y %H:%M.%S")
+  echo -e "$messageTime  [$category]  \E[31m\E[4mERROR\E[0m: $message" >&2
   exit ${2:-100}
 }
 
@@ -46,3 +51,17 @@ function checkBin() {
   return 1
 }
 
+#########################
+## Functions - configuration
+
+# usage: getConfigValue <config key>
+function getConfigValue() {
+  value=$( grep -re "^$1=" "$configurationFile" |sed -e 's/^[^=]*=//;s/"//g;' )
+  [ -z "$value" ] && errorMessage "$1 configuration key not found"
+  echo "$value"
+}
+
+# usage: getConfigValue <supported values> <value to check>
+function checkAvailableValue() {
+  [ $( echo "$1" |grep -w "$2" |wc -l ) -eq 1 ]
+}

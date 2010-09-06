@@ -43,12 +43,18 @@ function errorMessage() {
   exit ${2:-100}
 }
 
-# usage: checkBin <binary name/path> [<binary name/path2> ... <binary name/path>N]
+# usage: checkBin <binary name/path>
 function checkBin() {
   info "Checking binary: $1"
   which "$1" >/dev/null 2>&1 && return 0
-  writeMessage "Unable to find binary $1."
-  return 1
+  errorMessage "Unable to find binary $1." 126
+}
+
+# usage: checkDataFile <data file path>
+function checkDataFile() {
+  info "Checking data file: $1"
+  [ -f "$1" ] && return 0
+  errorMessage "Unable to find data file '$1'." 126
 }
 
 #########################

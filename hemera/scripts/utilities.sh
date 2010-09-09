@@ -62,9 +62,11 @@ function checkDataFile() {
 
 # usage: getConfigValue <config key>
 function getConfigValue() {
-  value=$( grep -re "^$1=" "$configurationFile" |sed -e 's/^[^=]*=//;s/"//g;' )
-  [ -z "$value" ] && errorMessage "$1 configuration key not found"
-  echo "$value"
+  # Checks if the key exists.
+  [ $( grep -re "^$1=" "$configurationFile" |wc -l ) -eq 0 ] && errorMessage "$1 configuration key not found"
+
+  # Gets the value (may be empty).
+  grep -re "^$1=" "$configurationFile" |sed -e 's/^[^=]*=//;s/"//g;'
 }
 
 # usage: getConfigValue <supported values> <value to check>

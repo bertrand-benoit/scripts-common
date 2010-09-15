@@ -22,7 +22,7 @@ function writeMessage() {
   echoOption="-e"
   [ ! -z "$2" ] && [ "$2" -eq 0 ] && echoOption="-ne"
 
-  echo $echoOption "$messageTime  [$category]  $message"
+  echo $echoOption "$messageTime  [$category]  $message" |tee -a "$logFile"
 }
 
 # usage: info <message> [<0 or 1>]
@@ -39,7 +39,7 @@ function info() {
 function errorMessage() {
   local message="$1"
   messageTime=$(date +"%d/%m/%y %H:%M.%S")
-  echo -e "$messageTime  [$category]  \E[31m\E[4mERROR\E[0m: $message" >&2
+  echo -e "$messageTime  [$category]  \E[31m\E[4mERROR\E[0m: $message" |tee -a "$logFile" >&2
   exit ${2:-100}
 }
 
@@ -138,4 +138,29 @@ function manageAntHome() {
   [ ! -f "$_antPath" ] && errorMessage "Unable to find ant binary, ensure '$ANT_HOME' is the home of a Java Development Kit version 6."
   
   writeMessage "Found: $( "$_antPath" -v 2>&1|head -n 1 )"
+}
+
+# usage: launchJavaTool <class qualified name> <additional properties> <options>
+function launchJavaTool() {
+  local _jarFile="$libDir/hemera.jar"
+  local _className="$1"
+  local _additionalProperties="$2"
+  local _options="$3"  
+  
+  # Checks if verbose.
+  [ $verbose -eq 0 ] && _additionalProperties="$_additionalProperties -Dhemera.log.noConsole=true"
+  
+  # Ensures jar file has been created.
+  [ ! -f "$_jarFile" ] && errorMessage "You must build Hemera librairies before using $_className"
+  
+  # N.B.: java tools output (standard and error) are append to the logfile; however, some error messages can
+  #  be directly printed on output, so output are redirected to logfile too.
+  
+  # Launches the tool.
+  "$JAVA_HOME/bin/java" -classpath "$_jarFile" \
+    -Djava.system.class.loader=hemera.HemeraClassLoader \
+    -Dhemera.property.file="$configurationFile" \
+    -Dhemera.log.file="$logFile" $_additionalProperties \
+    "$_className" \
+    $_options >> "$logFile" 2>&1
 }

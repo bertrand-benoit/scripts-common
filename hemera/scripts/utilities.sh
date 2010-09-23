@@ -7,7 +7,13 @@
 #########################
 ## Global variables
 verbose=0
+noconsole=0
 category="general"
+
+#########################
+## Constants
+# timeout (in seconds) when stopping process, before killing it.
+PROCESS_STOP_TIMEOUT=10
 
 #########################
 ## Functions - various
@@ -22,7 +28,12 @@ function writeMessage() {
   echoOption="-e"
   [ ! -z "$2" ] && [ "$2" -eq 0 ] && echoOption="-ne"
 
-  echo $echoOption "$messageTime  [$category]  $message" |tee -a "$logFile"
+  # Checks if message must be shown on console.
+  if [ $noconsole -eq 0 ]; then
+    echo $echoOption "$messageTime  [$category]  $message" |tee -a "${logFile:-/tmp/hemera.log}"
+  else
+    echo $echoOption "$messageTime  [$category]  $message" >> "${logFile:-/tmp/hemera.log}"
+  fi
 }
 
 # usage: info <message> [<0 or 1>]
@@ -31,7 +42,7 @@ function info() {
   [ $verbose -eq 0 ] && return 0
   local message="$1"
   shift
-  writeMessage "$message" $*
+  writeMessage "INFO: $message" $*
 }
 
 # usage: errorMessage <message> [<exit code>]
@@ -39,8 +50,20 @@ function info() {
 function errorMessage() {
   local message="$1"
   messageTime=$(date +"%d/%m/%y %H:%M.%S")
-  echo -e "$messageTime  [$category]  \E[31m\E[4mERROR\E[0m: $message" |tee -a "$logFile" >&2
+  
+  # Checks if message must be shown on console.
+  if [ $noconsole -eq 0 ]; then
+    echo -e "$messageTime  [$category]  \E[31m\E[4mERROR\E[0m: $message" |tee -a "${logFile:-/tmp/hemera.log}" >&2
+  else
+    echo -e "$messageTime  [$category]  \E[31m\E[4mERROR\E[0m: $message" >> "${logFile:-/tmp/hemera.log}"
+  fi
+  
   exit ${2:-100}
+}
+
+# usage: updateStructure <dir path>
+function updateStructure() {
+  mkdir -p "$1" || errorMessage "Unable to create structure pieces (check permissions): $1"
 }
 
 # usage: checkBin <binary name/path>
@@ -56,6 +79,109 @@ function checkDataFile() {
   [ -f "$1" ] && return 0
   errorMessage "Unable to find data file '$1'." 126
 }
+
+# usage: checkLSB
+function checkLSB() {
+  lsbFunctions="/lib/lsb/init-functions"
+  [ -f "$lsbFunctions" ] || errorMessage "Unable to find LSB file $lsbFunctions. Please install it."
+  source "$lsbFunctions"
+}
+
+
+#########################
+## Functions - PID & Process management
+
+# usage: writePIDFile <pid file>
+function writePIDFile() {
+  local _pidFile="$1"
+  [ -f "$_pidFile" ] && errorMessage "PID file '$_pidFile' already exists."
+  echo "$$" > "$_pidFile"
+  info "Written PID '$$' in file '$1'."
+}
+
+# usage: deletePIDFile <pid file>
+function deletePIDFile() {
+  info "Removing PID file '$1'"
+  rm -f "$1"
+}
+
+# usage: getPIDFromFile <pid file>
+function getPIDFromFile() {
+  local _pidFile="$1"
+  
+  # Checks if PID file exists, otherwise regard process as NOT running.
+  [ ! -f "$_pidFile" ] && info "PID file '$_pidFile' not found." && return 1
+  
+  # Gets PID from file, and ensures it is defined.
+  local pidToCheck=$( head -n 1 "$1" )
+  [ -z "$pidToCheck" ] && info "PID file '$_pidFile' empty." && return 1
+  
+  # Writes it.
+  echo "$pidToCheck" && return 0
+}
+
+# usage: isRunningProcess <pid file> <process name>
+function isRunningProcess() {
+  local _pidFile="$1"
+  local _processName="$2"
+  
+  # Checks if PID file exists, otherwise regard process as NOT running.
+  pidToCheck=$( getPIDFromFile "$_pidFile" ) || return 1
+
+  # Checks if a process with specified PID is running.
+  info "Checking running process, PID=$pidToCheck, process=$_processName."
+  [ $( ps h -p "$pidToCheck" |grep -w "$_processName" |wc -l ) -eq 1 ] && return 0
+  
+  # It is not the case, informs and deletes the PID file.
+  deletePIDFile "$_pidFile"
+  info "process is dead but pid file exists. Deleted it."
+  return 1  
+}
+
+# usage: startProcess <pid file> <process name>
+function startProcess() {
+  local _pidFile="$1"
+  shift
+
+  # Writes the PID file.
+  writePIDFile "$_pidFile" || return 1
+  
+  # Messages must only be written in log file (no more on console).
+  export noconsole=1
+  
+  # Executes the specified command -> such a way the command WILL have the PID written in the file.
+  info "Starting background command: $*"
+  exec $*
+}
+
+# usage: stopProcess <pid file> <process name>
+function stopProcess() {
+  local _pidFile="$1"
+  local _processName="$2"
+
+  # Gets the PID.
+  pidToStop=$( getPIDFromFile "$_pidFile" ) || errorMessage "No PID found in file '$_pidFile'."
+  
+  # Requests stop.
+  info "Requesting process stop, PID=$pidToStop, process=$_processName."
+  kill "$pidToStop" || return 1
+  
+  # Waits until process stops, or timeout is reached.
+  remainingTime=$PROCESS_STOP_TIMEOUT  
+  while [ $remainingTime -gt 0 ] && isRunningProcess "$_pidFile" "$_processName"; do
+    # Waits 1 second.
+    sleep 1  
+    let remainingTime--
+  done
+  
+  # Checks if it is still running, otherwise deletes the PID file ands returns.
+  ! isRunningProcess "$_pidFile" "$_processName" && deletePIDFile "$_pidFile" && return 0
+  
+  # Destroy the process.
+  info "Killing process stop, PID=$pidToStop, process=$_processName."
+  kill -9 "$pidToStop" || return 1
+}
+
 
 #########################
 ## Functions - configuration

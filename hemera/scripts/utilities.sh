@@ -8,6 +8,7 @@
 ## Global variables
 verbose=0
 noconsole=0
+showError=1 # Should NOT be modified but in some very specific case (like checkConfig)
 category="general"
 
 #########################
@@ -70,6 +71,7 @@ function updateStructure() {
 function checkBin() {
   info "Checking binary: $1"
   which "$1" >/dev/null 2>&1 && return 0
+  [ $showError -eq 0 ] && return 1
   errorMessage "Unable to find binary $1." 126
 }
 
@@ -77,6 +79,7 @@ function checkBin() {
 function checkDataFile() {
   info "Checking data file: $1"
   [ -f "$1" ] && return 0
+  [ $showError -eq 0 ] && return 1
   errorMessage "Unable to find data file '$1'." 126
 }
 

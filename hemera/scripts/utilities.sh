@@ -53,14 +53,14 @@ function info() {
 function errorMessage() {
   local message="$1"
   messageTime=$(date +"%d/%m/%y %H:%M.%S")
-  
+
   # Checks if message must be shown on console.
   if [ $noconsole -eq 0 ]; then
     echo -e "$messageTime  [$category]  \E[31m\E[4mERROR\E[0m: $message" |tee -a "${logFile:-/tmp/hemera.log}" >&2
   else
     echo -e "$messageTime  [$category]  \E[31m\E[4mERROR\E[0m: $message" >> "${logFile:-/tmp/hemera.log}"
   fi
-  
+
   exit ${2:-100}
 }
 
@@ -113,14 +113,14 @@ function deletePIDFile() {
 # usage: getPIDFromFile <pid file>
 function getPIDFromFile() {
   local _pidFile="$1"
-  
+
   # Checks if PID file exists, otherwise regard process as NOT running.
   [ ! -f "$_pidFile" ] && info "PID file '$_pidFile' not found." && return 1
-  
+
   # Gets PID from file, and ensures it is defined.
   local pidToCheck=$( head -n 1 "$1" )
   [ -z "$pidToCheck" ] && info "PID file '$_pidFile' empty." && return 1
-  
+
   # Writes it.
   echo "$pidToCheck" && return 0
 }
@@ -129,18 +129,18 @@ function getPIDFromFile() {
 function isRunningProcess() {
   local _pidFile="$1"
   local _processName="$2"
-  
+
   # Checks if PID file exists, otherwise regard process as NOT running.
   pidToCheck=$( getPIDFromFile "$_pidFile" ) || return 1
 
   # Checks if a process with specified PID is running.
   info "Checking running process, PID=$pidToCheck, process=$_processName."
   [ $( ps h -p "$pidToCheck" |grep -w "$_processName" |wc -l ) -eq 1 ] && return 0
-  
+
   # It is not the case, informs and deletes the PID file.
   deletePIDFile "$_pidFile"
   info "process is dead but pid file exists. Deleted it."
-  return 1  
+  return 1
 }
 
 # usage: startProcess <pid file> <process name>
@@ -150,10 +150,10 @@ function startProcess() {
 
   # Writes the PID file.
   writePIDFile "$_pidFile" || return 1
-  
+
   # Messages must only be written in log file (no more on console).
   export noconsole=1
-  
+
   # Executes the specified command -> such a way the command WILL have the PID written in the file.
   info "Starting background command: $*"
   exec $*
@@ -166,22 +166,22 @@ function stopProcess() {
 
   # Gets the PID.
   pidToStop=$( getPIDFromFile "$_pidFile" ) || errorMessage "No PID found in file '$_pidFile'."
-  
+
   # Requests stop.
   info "Requesting process stop, PID=$pidToStop, process=$_processName."
   kill "$pidToStop" || return 1
-  
+
   # Waits until process stops, or timeout is reached.
-  remainingTime=$PROCESS_STOP_TIMEOUT  
+  remainingTime=$PROCESS_STOP_TIMEOUT
   while [ $remainingTime -gt 0 ] && isRunningProcess "$_pidFile" "$_processName"; do
     # Waits 1 second.
-    sleep 1  
+    sleep 1
     let remainingTime--
   done
-  
+
   # Checks if it is still running, otherwise deletes the PID file ands returns.
   ! isRunningProcess "$_pidFile" "$_processName" && deletePIDFile "$_pidFile" && return 0
-  
+
   # Destroy the process.
   info "Killing process stop, PID=$pidToStop, process=$_processName."
   kill -9 "$pidToStop" || return 1
@@ -193,7 +193,7 @@ function stopProcess() {
 function manageDaemon() {
   local _action="$1" _name="$2" _pidFile="$3" _processName="$4"
   local _logFile="$5" _outputFile="$6" _options="$7"
-    
+
   case "$_action" in
     daemon)
       # Starts the process.
@@ -203,7 +203,7 @@ function manageDaemon() {
     start)
       # Ensures it is not already running.
       isRunningProcess "$_pidFile" "$_processName" && writeMessage "$_name is already running." && return 0
-      
+
       # Starts it, launching this script in daemon mode.
       logFile="$_logFile" "$0" -D >"$_outputFile" 2>&1 &
       writeMessage "Launched $_name."
@@ -216,12 +216,12 @@ function manageDaemon() {
     stop)
       # Ensures it is running.
       ! isRunningProcess "$_pidFile" "$_processName" && writeMessage "$_name is NOT running." && return 0
-    
+
       # Stops the process.
-      stopProcess "$_pidFile" "$_processName" || errorMessage "Unable to stop $_name."  
+      stopProcess "$_pidFile" "$_processName" || errorMessage "Unable to stop $_name."
       writeMessage "Stopped $_name."
     ;;
-    
+
     [?])  return 1;;
   esac
 }
@@ -236,7 +236,7 @@ function daemonUsage() {
   echo -e "-v\tactivate the verbose mode"
   echo -e "-h\tshow this usage"
   echo -e "\nYou must either start, status or stop the $_name daemon."
-  
+
   exit 1
 }
 
@@ -260,21 +260,21 @@ function checkAvailableValue() {
 # usage: getConfigPath <config key>
 function getConfigPath() {
   value=$( getConfigValue "$1" ) || return 1
-  
+
   # Checks if it is an absolute path.
   if [[ "$value" =~ "^\/.*$" ]]; then
     echo "$value"
     return 0
   fi
-  
+
   # Checks if it is a "simple" path.
   if [[ "$value" =~ "^[^\/]*$" ]]; then
     echo "$value"
     return 0
   fi
-  
+
   # Prefixes with Hemera install directory path.
-  echo "$installDir/$value"  
+  echo "$installDir/$value"
 }
 
 #########################
@@ -286,19 +286,19 @@ function manageJavaHome() {
     # Checks if it is defined in configuration file.
     javaHome=$( getConfigValue "$CONFIG_KEY.java.home" ) || exit 100
     [ -z "$javaHome" ] && errorMessage "You must either configure JAVA_HOME environment variable or $CONFIG_KEY.java.home configuration element."
-    
+
     # Ensures it exists.
     [ ! -d "$javaHome" ] && errorMessage "$CONFIG_KEY.java.home defined $javaHome which is not found."
-    
+
     export JAVA_HOME="$javaHome"
   fi
-  
+
   # Ensures it is a jdk home directory.
   local _javaPath="$JAVA_HOME/bin/java"
   local _javacPath="$JAVA_HOME/bin/javac"
   [ ! -f "$_javaPath" ] && errorMessage "Unable to find java binary, ensure '$JAVA_HOME' is the home of a Java Development Kit version 6."
   [ ! -f "$_javacPath" ] && errorMessage "Unable to find javac binary, ensure '$JAVA_HOME' is the home of a Java Development Kit version 6."
-  
+
   writeMessage "Found: $( "$_javaPath" -version 2>&1|head -n 1 )"
 }
 
@@ -309,17 +309,17 @@ function manageAntHome() {
     # Checks if it is defined in configuration file.
     antHome=$( getConfigValue "$CONFIG_KEY.ant.home" ) || exit 100
     [ -z "$antHome" ] && errorMessage "You must either configure ANT_HOME environment variable or $CONFIG_KEY.ant.home configuration element."
-    
+
     # Ensures it exists.
     [ ! -d "$antHome" ] && errorMessage "$CONFIG_KEY.ant.home defined $antHome which is not found."
-    
+
     export ANT_HOME="$antHome"
   fi
-  
+
   # Checks ant is available.
   local _antPath="$ANT_HOME/bin/ant"
   [ ! -f "$_antPath" ] && errorMessage "Unable to find ant binary, ensure '$ANT_HOME' is the home of a Java Development Kit version 6."
-  
+
   writeMessage "Found: $( "$_antPath" -v 2>&1|head -n 1 )"
 }
 
@@ -328,17 +328,17 @@ function launchJavaTool() {
   local _jarFile="$libDir/hemera.jar"
   local _className="$1"
   local _additionalProperties="$2"
-  local _options="$3"  
-  
+  local _options="$3"
+
   # Checks if verbose.
   [ $verbose -eq 0 ] && _additionalProperties="$_additionalProperties -Dhemera.log.noConsole=true"
-  
+
   # Ensures jar file has been created.
   [ ! -f "$_jarFile" ] && errorMessage "You must build Hemera librairies before using $_className"
-  
+
   # N.B.: java tools output (standard and error) are append to the logfile; however, some error messages can
   #  be directly printed on output, so output are redirected to logfile too.
-  
+
   # Launches the tool.
   "$JAVA_HOME/bin/java" -classpath "$_jarFile" \
     -Djava.system.class.loader=hemera.HemeraClassLoader \

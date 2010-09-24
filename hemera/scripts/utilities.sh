@@ -185,6 +185,58 @@ function stopProcess() {
   kill -9 "$pidToStop" || return 1
 }
 
+# usage: manageDaemon <action> <name> <pid file> <process> [<logFile> <outputFile> <options>]
+#   action can be: start, status, stop (and daemon, only for internal purposes)
+#   logFile, outputFile and options are only needed if action is "start"
+function manageDaemon() {
+  local _action="$1" _name="$2" _pidFile="$3" _processName="$4"
+  local _logFile="$5" _outputFile="$6" _options="$7"
+    
+  case "$_action" in
+    daemon)
+      # Starts the process.
+      startProcess "$_pidFile" "$_processName" $_options
+    ;;
+
+    start)
+      # Ensures it is not already running.
+      isRunningProcess "$_pidFile" "$_processName" && writeMessage "$_name is already running." && return 0
+      
+      # Starts it, launching this script in daemon mode.
+      logFile="$_logFile" "$0" -D >"$_outputFile" 2>&1 &
+      writeMessage "Launched $_name."
+    ;;
+
+    status)
+      isRunningProcess "$_pidFile" "$_processName" && writeMessage "$_name is running." || writeMessage "$_name is stopped."
+    ;;
+
+    stop)
+      # Ensures it is running.
+      ! isRunningProcess "$_pidFile" "$_processName" && writeMessage "$_name is NOT running." && return 0
+    
+      # Stops the process.
+      stopProcess "$_pidFile" "$_processName" || errorMessage "Unable to stop $_name."  
+      writeMessage "Stopped $_name."
+    ;;
+    
+    [?])  return 1;;
+  esac
+}
+
+# usage: daemonUsage <name>
+function daemonUsage() {
+  local _name="$1"
+  echo -e "Usage: $0 -S||-T||-K [-hv]"
+  echo -e "-S\tstart $_name daemon"
+  echo -e "-T\tstatus $_name daemon"
+  echo -e "-K\tstop $_name daemon"
+  echo -e "-v\tactivate the verbose mode"
+  echo -e "-h\tshow this usage"
+  echo -e "\nYou must either start, status or stop the $_name daemon."
+  
+  exit 1
+}
 
 #########################
 ## Functions - configuration

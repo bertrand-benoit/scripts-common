@@ -9,7 +9,9 @@
 verbose=0
 noconsole=0
 showError=1 # Should NOT be modified but in some very specific case (like checkConfig)
-category="general"
+
+# Defines default category if not already defined.
+[ -z "$category" ] && category="general"
 
 #########################
 ## Constants

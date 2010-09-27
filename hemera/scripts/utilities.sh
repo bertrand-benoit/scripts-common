@@ -128,14 +128,14 @@ function getPIDFromFile() {
 # usage: isRunningProcess <pid file> <process name>
 function isRunningProcess() {
   local _pidFile="$1"
-  local _processName="$2"
+  local _processName=$( basename "$2" ) # Removes the path which can be different between each action
 
   # Checks if PID file exists, otherwise regard process as NOT running.
   pidToCheck=$( getPIDFromFile "$_pidFile" ) || return 1
 
   # Checks if a process with specified PID is running.
   info "Checking running process, PID=$pidToCheck, process=$_processName."
-  [ $( ps h -p "$pidToCheck" |grep -w "$_processName" |wc -l ) -eq 1 ] && return 0
+  [ $( ps h -p "$pidToCheck" |grep -E "$_processName($|[ \t])" |wc -l ) -eq 1 ] && return 0
 
   # It is not the case, informs and deletes the PID file.
   deletePIDFile "$_pidFile"

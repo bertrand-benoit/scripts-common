@@ -17,6 +17,7 @@ showError=1 # Should NOT be modified but in some very specific case (like checkC
 ## Constants
 # timeout (in seconds) when stopping process, before killing it.
 PROCESS_STOP_TIMEOUT=10
+DAEMON_SPECIAL_RUN_ACTION="-R"
 
 #########################
 ## Functions - various
@@ -67,6 +68,23 @@ function errorMessage() {
 # usage: updateStructure <dir path>
 function updateStructure() {
   mkdir -p "$1" || errorMessage "Unable to create structure pieces (check permissions): $1"
+}
+
+# usage: getLastLinesFromN <file path> <line begin>
+function getLastLinesFromN() {
+  local _source="$1" _lineBegin="$2"
+  local _sourceLineCount=$( cat "$_source" |wc -l )
+
+  # Returns the N last lines.
+  tail -n $( expr $_sourceLineCount - $_lineBegin + 1 ) "$_source"
+}
+
+# usage: getLinesFromNToP <file path> <from line N> <line begin> <line end>
+function getLinesFromNToP() {
+  local _source="$1" _lineBegin="$2" _lineEnd="$3"
+  local _sourceLineCount=$( cat "$_source" |wc -l )
+
+  tail -n $( expr $_sourceLineCount - $_lineBegin + 1 ) "$_source" |head -n $( expr $_lineEnd - $_lineBegin + 1 )
 }
 
 # usage: checkBin <binary name/path>
@@ -147,14 +165,15 @@ function isRunningProcess() {
 function startProcess() {
   local _pidFile="$1"
   shift
+  local _processName="$1"
 
-  # Writes the PID file.
+  ## Writes the PID file.
   writePIDFile "$_pidFile" || return 1
 
-  # Messages must only be written in log file (no more on console).
+  ## Messages must only be written in log file (no more on console).
   export noconsole=1
 
-  # Executes the specified command -> such a way the command WILL have the PID written in the file.
+  ## Executes the specified command -> such a way the command WILL have the PID written in the file.
   info "Starting background command: $*"
   exec $*
 }
@@ -187,6 +206,14 @@ function stopProcess() {
   kill -9 "$pidToStop" || return 1
 }
 
+# usage: setUpKillChildTrap
+function setUpKillChildTrap() {
+  ## IMPORTANT: when the main process is stopped (or killed), all its child must be stopped too,
+  ##  defines some trap to ensure that.
+  # When this process receive an EXIT signal, kills all process of the group (including children, and main process).
+  trap 'writeMessage "Killing all processes of the group of main process $_processName"; kill -s HUP 0' EXIT
+}
+
 # usage: manageDaemon <action> <name> <pid file> <process> [<logFile> <outputFile> <options>]
 #   action can be: start, status, stop (and daemon, only for internal purposes)
 #   logFile, outputFile and options are only needed if action is "start"
@@ -196,6 +223,11 @@ function manageDaemon() {
 
   case "$_action" in
     daemon)
+      # If the option is NOT the special one which activates last action "run"; setups trap ensuring
+      # children process will be stopped in same time this main process is stopped, otherwise it will
+      # setup when managing the run action.
+      [[ "$_options" != "$DAEMON_SPECIAL_RUN_ACTION" ]] && setUpKillChildTrap
+
       # Starts the process.
       startProcess "$_pidFile" "$_processName" $_options
     ;;
@@ -220,6 +252,11 @@ function manageDaemon() {
       # Stops the process.
       stopProcess "$_pidFile" "$_processName" || errorMessage "Unable to stop $_name."
       writeMessage "Stopped $_name."
+    ;;
+
+    run)
+      # Setups trap ensuring children process will be stopped in same time this main process is stopped.
+      setUpKillChildTrap
     ;;
 
     [?])  return 1;;

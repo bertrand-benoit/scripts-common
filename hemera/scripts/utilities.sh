@@ -5,6 +5,12 @@
 # Description: provides lots of utilities functions.
 
 #########################
+## Global configuration
+# Cf. http://www.gnu.org/software/bash/manual/bashref.html#The-Shopt-Builtin
+# Ensures respect to quoted arguments to the conditional command's =~ operator. 
+shopt -s compat31
+
+#########################
 ## Global variables
 verbose=0
 noconsole=0

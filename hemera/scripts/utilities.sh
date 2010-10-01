@@ -243,7 +243,7 @@ function manageDaemon() {
       isRunningProcess "$_pidFile" "$_processName" && writeMessage "$_name is already running." && return 0
 
       # Starts it, launching this script in daemon mode.
-      logFile="$_logFile" "$0" -D >"$_outputFile" 2>&1 &
+      logFile="$_logFile" "$0" -D >>"$_outputFile" 2>&1 &
       writeMessage "Launched $_name."
     ;;
 
@@ -261,6 +261,9 @@ function manageDaemon() {
     ;;
 
     run)
+      ## Messages must only be written in log file (no more on console).
+      export noconsole=1
+
       # Setups trap ensuring children process will be stopped in same time this main process is stopped.
       setUpKillChildTrap
     ;;

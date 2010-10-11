@@ -260,7 +260,7 @@ function manageDaemon() {
       isRunningProcess "$_pidFile" "$_processName" && writeMessage "$_name is already running." && return 0
 
       # Starts it, launching this script in daemon mode.
-      logFile="$_logFile" "$0" -D >>"$_outputFile" 2>&1 &
+      h_logFile="$_logFile" "$0" -D >>"$_outputFile" 2>&1 &
       writeMessage "Launched $_name."
     ;;
 
@@ -406,7 +406,7 @@ function launchJavaTool() {
   "$JAVA_HOME/bin/java" -classpath "$_jarFile" \
     -Djava.system.class.loader=hemera.HemeraClassLoader \
     -Dhemera.property.file="$h_configurationFile" \
-    -Dhemera.log.file="$logFile" $_additionalProperties \
+    -Dhemera.log.file="$h_logFile" $_additionalProperties \
     "$_className" \
-    $_options >> "$logFile" 2>&1
+    $_options >> "$h_logFile" 2>&1
 }

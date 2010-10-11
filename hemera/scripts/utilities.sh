@@ -91,7 +91,7 @@ function errorMessage() {
 
 # usage: updateStructure <dir path>
 function updateStructure() {
-  mkdir -p "$1" || errorMessage "Unable to create structure pieces (check permissions): $1"
+  mkdir -p "$1" || errorMessage "Unable to create structure pieces (check permissions): $1" $ERROR_ENVIRONMENT
 }
 
 # usage: getLastLinesFromN <file path> <line begin>
@@ -116,7 +116,7 @@ function checkBin() {
   info "Checking binary: $1"
   which "$1" >/dev/null 2>&1 && return 0
   [ $showError -eq 0 ] && return 1
-  errorMessage "Unable to find binary $1." 126
+  errorMessage "Unable to find binary $1." $ERROR_CHECK_BIN
 }
 
 # usage: checkDataFile <data file path>
@@ -124,13 +124,13 @@ function checkDataFile() {
   info "Checking data file: $1"
   [ -f "$1" ] && return 0
   [ $showError -eq 0 ] && return 1
-  errorMessage "Unable to find data file '$1'." 126
+  errorMessage "Unable to find data file '$1'." $ERROR_CHECK_CONFIG
 }
 
 # usage: checkLSB
 function checkLSB() {
   lsbFunctions="/lib/lsb/init-functions"
-  [ -f "$lsbFunctions" ] || errorMessage "Unable to find LSB file $lsbFunctions. Please install it."
+  [ -f "$lsbFunctions" ] || errorMessage "Unable to find LSB file $lsbFunctions. Please install it." $ERROR_ENVIRONMENT
   source "$lsbFunctions"
 }
 
@@ -310,7 +310,7 @@ function daemonUsage() {
 # usage: getConfigValue <config key>
 function getConfigValue() {
   # Checks if the key exists.
-  [ $( grep -re "^$1=" "$h_configurationFile" |wc -l ) -eq 0 ] && errorMessage "$1 configuration key not found"
+  [ $( grep -re "^$1=" "$h_configurationFile" |wc -l ) -eq 0 ] && errorMessage "$1 configuration key not found" $ERROR_CONFIG_VARIOUS
 
   # Gets the value (may be empty).
   grep -re "^$1=" "$h_configurationFile" |sed -e 's/^[^=]*=//;s/"//g;'
@@ -349,10 +349,10 @@ function manageJavaHome() {
   if [ -z "$JAVA_HOME" ]; then
     # Checks if it is defined in configuration file.
     javaHome=$( getConfigValue "$CONFIG_KEY.java.home" ) || exit $ERROR_CONFIG_VARIOUS
-    [ -z "$javaHome" ] && errorMessage "You must either configure JAVA_HOME environment variable or $CONFIG_KEY.java.home configuration element."
+    [ -z "$javaHome" ] && errorMessage "You must either configure JAVA_HOME environment variable or $CONFIG_KEY.java.home configuration element." $ERROR_ENVIRONMENT
 
     # Ensures it exists.
-    [ ! -d "$javaHome" ] && errorMessage "$CONFIG_KEY.java.home defined $javaHome which is not found."
+    [ ! -d "$javaHome" ] && errorMessage "$CONFIG_KEY.java.home defined $javaHome which is not found." $ERROR_CONFIG_VARIOUS
 
     export JAVA_HOME="$javaHome"
   fi
@@ -360,8 +360,8 @@ function manageJavaHome() {
   # Ensures it is a jdk home directory.
   local _javaPath="$JAVA_HOME/bin/java"
   local _javacPath="$JAVA_HOME/bin/javac"
-  [ ! -f "$_javaPath" ] && errorMessage "Unable to find java binary, ensure '$JAVA_HOME' is the home of a Java Development Kit version 6."
-  [ ! -f "$_javacPath" ] && errorMessage "Unable to find javac binary, ensure '$JAVA_HOME' is the home of a Java Development Kit version 6."
+  [ ! -f "$_javaPath" ] && errorMessage "Unable to find java binary, ensure '$JAVA_HOME' is the home of a Java Development Kit version 6." $ERROR_ENVIRONMENT
+  [ ! -f "$_javacPath" ] && errorMessage "Unable to find javac binary, ensure '$JAVA_HOME' is the home of a Java Development Kit version 6." $ERROR_ENVIRONMENT
 
   writeMessage "Found: $( "$_javaPath" -version 2>&1|head -n 1 )"
 }
@@ -372,17 +372,17 @@ function manageAntHome() {
   if [ -z "$ANT_HOME" ]; then
     # Checks if it is defined in configuration file.
     antHome=$( getConfigValue "$CONFIG_KEY.ant.home" ) || exit $ERROR_CONFIG_VARIOUS
-    [ -z "$antHome" ] && errorMessage "You must either configure ANT_HOME environment variable or $CONFIG_KEY.ant.home configuration element."
+    [ -z "$antHome" ] && errorMessage "You must either configure ANT_HOME environment variable or $CONFIG_KEY.ant.home configuration element." $ERROR_ENVIRONMENT
 
     # Ensures it exists.
-    [ ! -d "$antHome" ] && errorMessage "$CONFIG_KEY.ant.home defined $antHome which is not found."
+    [ ! -d "$antHome" ] && errorMessage "$CONFIG_KEY.ant.home defined $antHome which is not found." $ERROR_CONFIG_VARIOUS
 
     export ANT_HOME="$antHome"
   fi
 
   # Checks ant is available.
   local _antPath="$ANT_HOME/bin/ant"
-  [ ! -f "$_antPath" ] && errorMessage "Unable to find ant binary, ensure '$ANT_HOME' is the home of a Java Development Kit version 6."
+  [ ! -f "$_antPath" ] && errorMessage "Unable to find ant binary, ensure '$ANT_HOME' is the home of a Java Development Kit version 6." $ERROR_ENVIRONMENT
 
   writeMessage "Found: $( "$_antPath" -v 2>&1|head -n 1 )"
 }
@@ -398,7 +398,7 @@ function launchJavaTool() {
   [ $verbose -eq 0 ] && _additionalProperties="$_additionalProperties -Dhemera.log.noConsole=true"
 
   # Ensures jar file has been created.
-  [ ! -f "$_jarFile" ] && errorMessage "You must build Hemera librairies before using $_className"
+  [ ! -f "$_jarFile" ] && errorMessage "You must build Hemera libraries before using $_className" $ERROR_ENVIRONMENT
 
   # N.B.: java tools output (standard and error) are append to the logfile; however, some error messages can
   #  be directly printed on output, so output are redirected to logfile too.

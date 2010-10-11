@@ -309,10 +309,10 @@ function daemonUsage() {
 # usage: getConfigValue <config key>
 function getConfigValue() {
   # Checks if the key exists.
-  [ $( grep -re "^$1=" "$configurationFile" |wc -l ) -eq 0 ] && errorMessage "$1 configuration key not found"
+  [ $( grep -re "^$1=" "$h_configurationFile" |wc -l ) -eq 0 ] && errorMessage "$1 configuration key not found"
 
   # Gets the value (may be empty).
-  grep -re "^$1=" "$configurationFile" |sed -e 's/^[^=]*=//;s/"//g;'
+  grep -re "^$1=" "$h_configurationFile" |sed -e 's/^[^=]*=//;s/"//g;'
 }
 
 # usage: getConfigValue <supported values> <value to check>
@@ -388,7 +388,7 @@ function manageAntHome() {
 
 # usage: launchJavaTool <class qualified name> <additional properties> <options>
 function launchJavaTool() {
-  local _jarFile="$libDir/hemera.jar"
+  local _jarFile="$h_libDir/hemera.jar"
   local _className="$1"
   local _additionalProperties="$2"
   local _options="$3"
@@ -405,7 +405,7 @@ function launchJavaTool() {
   # Launches the tool.
   "$JAVA_HOME/bin/java" -classpath "$_jarFile" \
     -Djava.system.class.loader=hemera.HemeraClassLoader \
-    -Dhemera.property.file="$configurationFile" \
+    -Dhemera.property.file="$h_configurationFile" \
     -Dhemera.log.file="$logFile" $_additionalProperties \
     "$_className" \
     $_options >> "$logFile" 2>&1

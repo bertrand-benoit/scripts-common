@@ -20,12 +20,18 @@
 #
 # Version: 1.0
 # Description: provides lots of utilities functions.
+#
+# This script must NOT be directly called.
 
 #########################
 ## Global configuration
 # Cf. http://www.gnu.org/software/bash/manual/bashref.html#The-Shopt-Builtin
 # Ensures respect to quoted arguments to the conditional command's =~ operator. 
 shopt -s compat31
+
+# Ensures installDir is defined.
+[ -z "$installDir" ] && echo -e "This script must NOT be directly called. installDir variable not defined" >&2 && exit 1
+source "$installDir/scripts/defineConstants.sh"
 
 #########################
 ## Global variables
@@ -36,11 +42,6 @@ showError=1 # Should NOT be modified but in some very specific case (like checkC
 # Defines default category if not already defined.
 [ -z "$category" ] && category="general"
 
-#########################
-## Constants
-# timeout (in seconds) when stopping process, before killing it.
-PROCESS_STOP_TIMEOUT=10
-DAEMON_SPECIAL_RUN_ACTION="-R"
 
 #########################
 ## Functions - various
@@ -85,7 +86,7 @@ function errorMessage() {
     echo -e "$messageTime  [$category]  \E[31m\E[4mERROR\E[0m: $message" >> "${logFile:-/tmp/hemera.log}"
   fi
 
-  exit ${2:-100}
+  exit ${2:-$ERROR_DEFAULT}
 }
 
 # usage: updateStructure <dir path>
@@ -300,7 +301,7 @@ function daemonUsage() {
   echo -e "-h\tshow this usage"
   echo -e "\nYou must either start, status or stop the $_name daemon."
 
-  exit 1
+  exit $ERROR_USAGE
 }
 
 #########################
@@ -347,7 +348,7 @@ function manageJavaHome() {
   # Checks if environment variable JAVA_HOME is defined.
   if [ -z "$JAVA_HOME" ]; then
     # Checks if it is defined in configuration file.
-    javaHome=$( getConfigValue "$CONFIG_KEY.java.home" ) || exit 100
+    javaHome=$( getConfigValue "$CONFIG_KEY.java.home" ) || exit $ERROR_CONFIG_VARIOUS
     [ -z "$javaHome" ] && errorMessage "You must either configure JAVA_HOME environment variable or $CONFIG_KEY.java.home configuration element."
 
     # Ensures it exists.
@@ -370,7 +371,7 @@ function manageAntHome() {
   # Checks if environment variable ANT_HOME is defined.
   if [ -z "$ANT_HOME" ]; then
     # Checks if it is defined in configuration file.
-    antHome=$( getConfigValue "$CONFIG_KEY.ant.home" ) || exit 100
+    antHome=$( getConfigValue "$CONFIG_KEY.ant.home" ) || exit $ERROR_CONFIG_VARIOUS
     [ -z "$antHome" ] && errorMessage "You must either configure ANT_HOME environment variable or $CONFIG_KEY.ant.home configuration element."
 
     # Ensures it exists.

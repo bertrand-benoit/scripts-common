@@ -36,7 +36,6 @@ source "$installDir/scripts/defineConstants.sh"
 #########################
 ## Global variables
 [ -z "$verbose" ] && verbose=0
-[ -z "$noconsole" ] && noconsole=0
 [ -z "$showError" ] && showError=1 # Should NOT be modified but in some very specific case (like checkConfig)
 
 # Defines default category if not already defined.
@@ -57,10 +56,10 @@ function writeMessage() {
   [ ! -z "$2" ] && [ "$2" -eq 0 ] && echoOption="-ne"
 
   # Checks if message must be shown on console.
-  if [ $noconsole -eq 0 ]; then
-    echo $echoOption "$messageTime  [$category]  $message" |tee -a "${logFile:-/tmp/hemera.log}"
+  if [ -z "$noconsole" ] || [ $noconsole -eq 0 ]; then
+    echo $echoOption "$messageTime  [$category]  $message" |tee -a "${h_logFile:-/tmp/hemera.log}"
   else
-    echo $echoOption "$messageTime  [$category]  $message" >> "${logFile:-/tmp/hemera.log}"
+    echo $echoOption "$messageTime  [$category]  $message" >> "${h_logFile:-/tmp/hemera.log}"
   fi
 }
 
@@ -80,7 +79,7 @@ function errorMessage() {
   messageTime=$(date +"%d/%m/%y %H:%M.%S")
 
   # Checks if message must be shown on console.
-  if [ $noconsole -eq 0 ]; then
+  if [ -z "$noconsole" ] || [ $noconsole -eq 0 ]; then
     echo -e "$messageTime  [$category]  \E[31m\E[4mERROR\E[0m: $message" |tee -a "${h_logFile:-/tmp/hemera.log}" >&2
   else
     echo -e "$messageTime  [$category]  \E[31m\E[4mERROR\E[0m: $message" >> "${h_logFile:-/tmp/hemera.log}"
@@ -194,8 +193,8 @@ function startProcess() {
   ## Writes the PID file.
   writePIDFile "$_pidFile" || return 1
 
-  ## Messages must only be written in log file (no more on console).
-  export noconsole=1
+  ## If noconsole is not already defined, messages must only be written in log file (no more on console).
+  [ -z "$noconsole" ] && export noconsole=1
 
   ## Executes the specified command -> such a way the command WILL have the PID written in the file.
   info "Starting background command: $*"
@@ -279,8 +278,8 @@ function manageDaemon() {
     ;;
 
     run)
-      ## Messages must only be written in log file (no more on console).
-      export noconsole=1
+      ## If noconsole is not already defined, messages must only be written in log file (no more on console).
+      [ -z "$noconsole" ] && export noconsole=1
 
       # Setups trap ensuring children process will be stopped in same time this main process is stopped.
       setUpKillChildTrap

@@ -96,10 +96,8 @@ function updateStructure() {
 # usage: getLastLinesFromN <file path> <line begin>
 function getLastLinesFromN() {
   local _source="$1" _lineBegin="$2"
-  local _sourceLineCount=$( cat "$_source" |wc -l )
 
-  # Returns the N last lines.
-  tail -n $( expr $_sourceLineCount - $_lineBegin + 1 ) "$_source"
+  cat -n "$_source" |awk "\$1 >= $_lineBegin {print}" |sed -e 's/^[ \t]*[0-9][0-9]*[ \t]*//'
 }
 
 # usage: getLinesFromNToP <file path> <from line N> <line begin> <line end>

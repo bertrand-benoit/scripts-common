@@ -35,9 +35,9 @@ source "$installDir/scripts/defineConstants.sh"
 
 #########################
 ## Global variables
-verbose=0
-noconsole=0
-showError=1 # Should NOT be modified but in some very specific case (like checkConfig)
+[ -z "$verbose" ] && verbose=0
+[ -z "$noconsole" ] && noconsole=0
+[ -z "$showError" ] && showError=1 # Should NOT be modified but in some very specific case (like checkConfig)
 
 # Defines default category if not already defined.
 [ -z "$category" ] && category="general"
@@ -81,9 +81,9 @@ function errorMessage() {
 
   # Checks if message must be shown on console.
   if [ $noconsole -eq 0 ]; then
-    echo -e "$messageTime  [$category]  \E[31m\E[4mERROR\E[0m: $message" |tee -a "${logFile:-/tmp/hemera.log}" >&2
+    echo -e "$messageTime  [$category]  \E[31m\E[4mERROR\E[0m: $message" |tee -a "${h_logFile:-/tmp/hemera.log}" >&2
   else
-    echo -e "$messageTime  [$category]  \E[31m\E[4mERROR\E[0m: $message" >> "${logFile:-/tmp/hemera.log}"
+    echo -e "$messageTime  [$category]  \E[31m\E[4mERROR\E[0m: $message" >> "${h_logFile:-/tmp/hemera.log}"
   fi
 
   exit ${2:-$ERROR_DEFAULT}

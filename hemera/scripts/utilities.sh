@@ -137,10 +137,12 @@ function isEmptyDirectory()
   [ $( ls -1 "$1" |wc -l ) -eq 0 ]
 }
 
-# usage: waitUntilAllInputManaged <timeout>
+# usage: waitUntilAllInputManaged [<timeout>]
+# Default timeout is 2 minutes.
 function waitUntilAllInputManaged() {
-  local _remainingTime=$1
-  while ! isEmptyDirectory "$h_newInputDir" && [ $_remainingTime -gt 0 ]; do
+  local _remainingTime=${1:-120}
+  while ! isEmptyDirectory "$h_newInputDir" || ! isEmptyDirectory "$h_curInputDir"; do
+    [ $_remainingTime -eq 0 ] && break
     sleep 1
     let _remainingTime--
   done

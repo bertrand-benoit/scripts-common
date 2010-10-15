@@ -131,6 +131,20 @@ function checkLSB() {
   source "$lsbFunctions"
 }
 
+# usage: isEmptyDirectory <path>
+function isEmptyDirectory()
+{
+  [ $( ls -1 "$1" |wc -l ) -eq 0 ]
+}
+
+# usage: waitUntilAllInputManaged <timeout>
+function waitUntilAllInputManaged() {
+  local _remainingTime=$1
+  while ! isEmptyDirectory "$h_newInputDir" && [ $_remainingTime -gt 0 ]; do
+    sleep 1
+    let _remainingTime--
+  done
+}
 
 #########################
 ## Functions - PID & Process management
@@ -355,12 +369,6 @@ function getConfigPath() {
 
   # Prefixes with Hemera install directory path.
   echo "$installDir/$value"
-}
-
-# usage: isEmptyDirectory <path>
-function isEmptyDirectory()
-{
-  [ $( ls -1 "$1" |wc -l ) -eq 0 ]
 }
 
 #########################

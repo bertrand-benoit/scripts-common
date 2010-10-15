@@ -209,7 +209,7 @@ function stopProcess() {
 
   # Requests stop.
   info "Requesting process stop, PID=$pidToStop, process=$_processName."
-  kill "$pidToStop" || return 1
+  kill -s TERM "$pidToStop" || return 1
 
   # Waits until process stops, or timeout is reached.
   remainingTime=$PROCESS_STOP_TIMEOUT
@@ -224,15 +224,34 @@ function stopProcess() {
 
   # Destroy the process.
   info "Killing process stop, PID=$pidToStop, process=$_processName."
-  kill -9 "$pidToStop" || return 1
+  kill -s KILL "$pidToStop" || return 1
 }
 
-# usage: setUpKillChildTrap
+# usage: killChildProcesses <pid> [1]
+# 1: toggle defining is it the top hierarchy proces.
+function killChildProcesses() {
+  local _pid=$1 _topProcess=${2:-0}
+
+  # Manages PID of each child process of THIS process.
+  for childProcessPid in $( ps -o pid --no-headers --ppid $_pid ); do
+    # Ensures the child process still exists; it won't be the case of the last launched ps allowing to
+    #  get child process ...
+    $( ps -p $childProcessPid --no-headers >/dev/null ) && killChildProcesses "$childProcessPid"
+  done
+
+  # Kills the child process if not main one.
+  [ $_topProcess -eq 0 ] && kill -s HUP $_pid 
+}
+
+# usage: setUpKillChildTrap <process name>
 function setUpKillChildTrap() {
+  export TRAP_processName="$1"
+
   ## IMPORTANT: when the main process is stopped (or killed), all its child must be stopped too,
   ##  defines some trap to ensure that.
-  # When this process receive an EXIT signal, kills all process of the group (including children, and main process).
-  trap 'writeMessage "Killing all processes of the group of main process $_processName"; kill -s HUP 0' EXIT
+  # When this process receive an EXIT signal, kills all its child processes.
+  # N.B.: old system, killing all process of the same process group was causing error like "broken pipe" ...
+  trap 'writeMessage "Killing all processes of the group of main process $TRAP_processName"; killChildProcesses $$ 1; exit 0' EXIT
 }
 
 # usage: manageDaemon <action> <name> <pid file> <process> [<logFile> <outputFile> <options>]
@@ -247,7 +266,7 @@ function manageDaemon() {
       # If the option is NOT the special one which activates last action "run"; setups trap ensuring
       # children process will be stopped in same time this main process is stopped, otherwise it will
       # setup when managing the run action.
-      [[ "$_options" != "$DAEMON_SPECIAL_RUN_ACTION" ]] && setUpKillChildTrap
+      [[ "$_options" != "$DAEMON_SPECIAL_RUN_ACTION" ]] && setUpKillChildTrap "$_processName"
 
       # Starts the process.
       startProcess "$_pidFile" "$_processName" $_options
@@ -280,7 +299,7 @@ function manageDaemon() {
       [ -z "$noconsole" ] && export noconsole=1
 
       # Setups trap ensuring children process will be stopped in same time this main process is stopped.
-      setUpKillChildTrap
+      setUpKillChildTrap "$_processName"
     ;;
 
     [?])  return 1;;
@@ -336,6 +355,12 @@ function getConfigPath() {
 
   # Prefixes with Hemera install directory path.
   echo "$installDir/$value"
+}
+
+# usage: isEmptyDirectory <path>
+function isEmptyDirectory()
+{
+  [ $( ls -1 "$1" |wc -l ) -eq 0 ]
 }
 
 #########################

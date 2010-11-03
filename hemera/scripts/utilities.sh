@@ -137,15 +137,44 @@ function isEmptyDirectory()
   [ $( ls -1 "$1" |wc -l ) -eq 0 ]
 }
 
+# usage: cleanNotManagedInput
+function cleanNotManagedInput() {
+  info "Cleaning NOT managed input (new and current)"
+  rm -f "$h_newInputDir"/* "$h_curInputDir"/* >/dev/null || exit $ERROR_ENVIRONMENT
+}
+
 # usage: waitUntilAllInputManaged [<timeout>]
 # Default timeout is 2 minutes.
 function waitUntilAllInputManaged() {
   local _remainingTime=${1:-120}
+  info "Waiting until all input are managed (timeout: $_remainingTime seconds)"
   while ! isEmptyDirectory "$h_newInputDir" || ! isEmptyDirectory "$h_curInputDir"; do
     [ $_remainingTime -eq 0 ] && break
     sleep 1
     let _remainingTime--
   done
+}
+
+#########################
+## Functions - Hemera mode
+# usage: initHemeraMode
+# Creates hemera mode file with normal mode.
+function initHemeraMode() {
+  updateHemeraMode "$HEMERA_MODE_NORMAL"
+}
+
+# usage: updateHemeraMode <mode>
+function updateHemeraMode() {
+  local _newMode=${1:-$HEMERA_MODE_NORMAL}
+  info "Updating Hemera mode to '$_newMode'"
+  echo "$_newMode" > "$h_modeFile"
+}
+
+# usage: getHemeraMode
+function getHemeraMode() {
+  # Ensures the mode file exists.
+  [ ! -f "$h_modeFile" ] && errorMessage "Unable to find Hemera mode file '$h_modeFile'" $ERROR_ENVIRONMENT
+  cat "$h_modeFile"
 }
 
 #########################

@@ -160,14 +160,29 @@ function waitUntilAllInputManaged() {
 # usage: initHemeraMode
 # Creates hemera mode file with normal mode.
 function initHemeraMode() {
-  updateHemeraMode "$HEMERA_MODE_NORMAL"
+  updateHemeraMode "$HEMERA_MODE_NORMAL_I18N"
 }
 
-# usage: updateHemeraMode <mode>
+# usage: updateHemeraMode <i18n mode>
 function updateHemeraMode() {
-  local _newMode=${1:-$HEMERA_MODE_NORMAL}
-  info "Updating Hemera mode to '$_newMode'"
-  echo "$_newMode" > "$h_modeFile"
+  local _newModei18N="$1"
+
+  # Defines the internal mode corresponding to this i18n mode (usually provided by speech recognition).
+  local _modeIndex=0
+  for availableMode in ${HEMERA_SUPPORTED_MODES_I18N[*]}; do
+    # Checks if this is the specified mode.
+    if [ "$_newModei18N" = "$availableMode" ]; then
+      # It is the case, writes the corresponding internal mode in the mode file.
+      echo "${HEMERA_SUPPORTED_MODES[$_modeIndex]}" > "$h_modeFile"
+      return 0
+    fi
+
+    let _modeIndex++
+  done
+
+  # No corresponding internal mode has been found, it is fatal.
+  # It should NEVER happen because mode must have been checked before this call.
+  errorMessage "Unable to find corresponding internal mode of I18N mode '$_newModei18N'" $ERROR_ENVIRONMENT
 }
 
 # usage: getHemeraMode

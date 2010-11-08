@@ -155,6 +155,17 @@ function waitUntilAllInputManaged() {
   done
 }
 
+# usage: matchesOneOf <patterns> <element to check>
+function matchesOneOf() {
+  local _patterns="$1" _element="$2"
+
+  for pattern in $_patterns; do
+    [[ "$_element" =~ "$pattern" ]] && return 0
+  done
+
+  return 1
+}
+
 #########################
 ## Functions - Hemera mode
 # usage: initHemeraMode

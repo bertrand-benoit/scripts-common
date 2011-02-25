@@ -72,6 +72,20 @@ function info() {
   writeMessage "INFO: $message" $*
 }
 
+# usage: warning <message>
+# Shows warning message.
+function warning() {
+  local message="$1"
+  messageTime=$(date +"%d/%m/%y %H:%M.%S")
+
+  # Checks if message must be shown on console.
+  if [ -z "$noconsole" ] || [ $noconsole -eq 0 ]; then
+    echo -e "$messageTime  [$category]  \E[31m\E[4mWARNING\E[0m: $message" |tee -a "${h_logFile:-/tmp/hemera.log}" >&2
+  else
+    echo -e "$messageTime  [$category]  \E[31m\E[4mWARNING\E[0m: $message" >> "${h_logFile:-/tmp/hemera.log}"
+  fi
+}
+
 # usage: errorMessage <message> [<exit code>]
 # Shows error message and exits.
 function errorMessage() {
@@ -164,6 +178,12 @@ function matchesOneOf() {
   done
 
   return 1
+}
+
+# usage: extractI18Nelement <locale file> <destination file>
+function extractI18Nelement() {
+  local _localeFile="$1" _destFile="$2"
+  grep -re "^[ \t]*[^#]" "$_localeFile" |sort > "$_destFile"
 }
 
 #########################

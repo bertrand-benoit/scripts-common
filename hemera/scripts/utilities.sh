@@ -122,6 +122,17 @@ function getLinesFromNToP() {
   tail -n $( expr $_sourceLineCount - $_lineBegin + 1 ) "$_source" |head -n $( expr $_lineEnd - $_lineBegin + 1 )
 }
 
+# usage: checkGNUWhich
+# Ensures "which" is a GNU which.
+function checkGNUWhich() {
+  [ $( LANG=C which --version 2>&1|head -n 1 |grep -w "GNU" |wc -l ) -eq 1 ]
+}
+
+# usage: checkEnvironment
+function checkEnvironment() {
+  checkGNUWhich || errorMessage "GNU version of which not found. Please install it." $ERROR_ENVIRONMENT
+}
+
 # usage: checkBin <binary name/path>
 function checkBin() {
   info "Checking binary: $1"

@@ -462,15 +462,16 @@ function getConfigPath() {
 #########################
 ## Functions - source code management
 # usage: manageJavaHome
+# Ensures JAVA environment is ok, and ensures JAVA_HOME is defined.
 function manageJavaHome() {
   # Checks if environment variable JAVA_HOME is defined.
   if [ -z "$JAVA_HOME" ]; then
     # Checks if it is defined in configuration file.
-    javaHome=$( getConfigValue "$CONFIG_KEY.java.home" ) || exit $ERROR_CONFIG_VARIOUS
+    javaHome=$( getConfigValue "environment.java.home" ) || exit $ERROR_CONFIG_VARIOUS
     [ -z "$javaHome" ] && errorMessage "You must either configure JAVA_HOME environment variable or $CONFIG_KEY.java.home configuration element." $ERROR_ENVIRONMENT
 
     # Ensures it exists.
-    [ ! -d "$javaHome" ] && errorMessage "$CONFIG_KEY.java.home defined $javaHome which is not found." $ERROR_CONFIG_VARIOUS
+    [ ! -d "$javaHome" ] && errorMessage "environment.java.home defined $javaHome which is not found." $ERROR_CONFIG_VARIOUS
 
     export JAVA_HOME="$javaHome"
   fi
@@ -481,19 +482,20 @@ function manageJavaHome() {
   [ ! -f "$_javaPath" ] && errorMessage "Unable to find java binary, ensure '$JAVA_HOME' is the home of a Java Development Kit version 6." $ERROR_ENVIRONMENT
   [ ! -f "$_javacPath" ] && errorMessage "Unable to find javac binary, ensure '$JAVA_HOME' is the home of a Java Development Kit version 6." $ERROR_ENVIRONMENT
 
-  writeMessage "Found: $( "$_javaPath" -version 2>&1|head -n 1 )"
+  writeMessage "Found: $( "$_javaPath" -version 2>&1|head -n 2| sed -e 's/$/ [/;' |tr -d '\n' |sed -e 's/..$/]/' )"
 }
 
 # usage: manageAntHome
+# Ensures ANT environment is ok, and ensures ANT_HOME is defined.
 function manageAntHome() {
   # Checks if environment variable ANT_HOME is defined.
   if [ -z "$ANT_HOME" ]; then
     # Checks if it is defined in configuration file.
-    antHome=$( getConfigValue "$CONFIG_KEY.ant.home" ) || exit $ERROR_CONFIG_VARIOUS
+    antHome=$( getConfigValue "environment.ant.home" ) || exit $ERROR_CONFIG_VARIOUS
     [ -z "$antHome" ] && errorMessage "You must either configure ANT_HOME environment variable or $CONFIG_KEY.ant.home configuration element." $ERROR_ENVIRONMENT
 
     # Ensures it exists.
-    [ ! -d "$antHome" ] && errorMessage "$CONFIG_KEY.ant.home defined $antHome which is not found." $ERROR_CONFIG_VARIOUS
+    [ ! -d "$antHome" ] && errorMessage "environment.ant.home defined $antHome which is not found." $ERROR_CONFIG_VARIOUS
 
     export ANT_HOME="$antHome"
   fi
@@ -503,6 +505,24 @@ function manageAntHome() {
   [ ! -f "$_antPath" ] && errorMessage "Unable to find ant binary, ensure '$ANT_HOME' is the home of a Java Development Kit version 6." $ERROR_ENVIRONMENT
 
   writeMessage "Found: $( "$_antPath" -v 2>&1|head -n 1 )"
+}
+
+# usage: manageTomcatHome
+# Ensures Tomcat environment is ok, and defines h_tomcatDir.
+function manageTomcatHome() {
+  local tomcatDir="$installDir/thirdParty/webServices/bin/tomcat"
+  [ ! -d "$tomcatDir" ] && errorMessage "Apache Tomcat '$tomcatDir' not found. You must either disable Tomcat activation (hemera.run.activation.tomcat), or install it/create a symbolic link." $ERROR_CONFIG_VARIOUS
+  export h_tomcatDir="$tomcatDir"
+
+  # Checks the Tomcat version.
+  local _version="Apache Tomcat Version [unknown]"
+  if [ -f "$tomcatDir/RELEASE-NOTES" ]; then
+    _version=$( head -n 30 "$tomcatDir/RELEASE-NOTES" |grep "Apache Tomcat Version" |sed -e 's/^[ \t][ \t]*//g;' )
+  elif [ -x "/bin/rpms" ]; then
+    _version="Apache Tomcat Version "$( cd -P "$tomcatDir"; /bin/rpm -qf "$PWD" |sed -e 's/^[^-]*-\([0-9.]*\)-.*$/\1/' )
+  fi
+  
+  writeMessage "Found: $_version"
 }
 
 # usage: launchJavaTool <class qualified name> <additional properties> <options>

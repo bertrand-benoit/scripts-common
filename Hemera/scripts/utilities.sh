@@ -460,6 +460,43 @@ function getConfigPath() {
 }
 
 #########################
+## Functions - commands
+
+# usage: initializeCommandMap
+function initializeCommandMap() {
+  # Removes the potential existing list file.
+  rm -f "$h_commandMap"
+
+  # For each available commands.
+  for commandRaw in $( find "$installDir/scripts/core/command" -type f ! -name "*~" ! -name "*.txt" |sort |sed -e 's/[ \t]/£/g;' ); do
+    local _command=$( echo "$commandRaw" |sed -e 's/£/ /g;' )
+    local _commandName=$( basename "$_command" )
+    
+    # Extracts keyword.
+    local _keyword=$( head -n 30 "$_command" |grep "^#.Keyword:" |sed -e 's/^#.Keyword:[ \t]*//g;s/[ \t]*$//g;' )
+    [ -z "$_keyword" ] && warning "The command '$_commandName' doesn't seem to respect format. It will be ignored." && continue
+
+    # Updates command map file.
+    for localizedName in $( grep -re "$_keyword"_"PATTERN_I18N" "$h_i18nFile" |sed -e 's/^[^(]*(//g;s/).*$//g;s/"//g;' ); do
+      echo "$localizedName=$_command" >> "$h_commandMap"
+    done
+  done
+}
+
+# usage: getMappedCommand <speech recognition result command>
+# <speech recognition result command>: 1 word corresponding to speeched command
+# returns the mapped command script if any, empty string otherwise.
+function getMappedCommand() {
+  local _commandName="$1"
+
+  # Ensures map file exists.
+  [ ! -f "$h_commandMap" ] && warning "The command map file has not been initialized." && return 1
+
+  # Attempts to get mapped command script.
+  echo $( grep "^$_commandName=" "$h_commandMap" |sed -e 's/^[^=]*=//g;' )
+}
+
+#########################
 ## Functions - source code management
 # usage: manageJavaHome
 # Ensures JAVA environment is ok, and ensures JAVA_HOME is defined.

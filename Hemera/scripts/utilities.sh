@@ -198,24 +198,24 @@ function extractI18Nelement() {
 }
 
 #########################
-## Functions - Hemera mode
-# usage: initHemeraMode
+## Functions - Recognized Commands mode
+# usage: initRecoCmdMode
 # Creates hemera mode file with normal mode.
-function initHemeraMode() {
-  updateHemeraMode "$HEMERA_MODE_NORMAL_I18N"
+function initRecoCmdMode() {
+  updateRecoCmdMode "$H_RECO_CMD_MODE_NORMAL_I18N"
 }
 
-# usage: updateHemeraMode <i18n mode>
-function updateHemeraMode() {
+# usage: updateRecoCmdMode <i18n mode>
+function updateRecoCmdMode() {
   local _newModei18N="$1"
 
   # Defines the internal mode corresponding to this i18n mode (usually provided by speech recognition).
   local _modeIndex=0
-  for availableMode in ${HEMERA_SUPPORTED_MODES_I18N[*]}; do
+  for availableMode in ${H_SUPPORTED_RECO_CMD_MODES_I18N[*]}; do
     # Checks if this is the specified mode.
     if [ "$_newModei18N" = "$availableMode" ]; then
       # It is the case, writes the corresponding internal mode in the mode file.
-      echo "${HEMERA_SUPPORTED_MODES[$_modeIndex]}" > "$h_modeFile"
+      echo "${H_SUPPORTED_RECO_CMD_MODES[$_modeIndex]}" > "$h_recoCmdModeFile"
       return 0
     fi
 
@@ -227,11 +227,12 @@ function updateHemeraMode() {
   errorMessage "Unable to find corresponding internal mode of I18N mode '$_newModei18N'" $ERROR_ENVIRONMENT
 }
 
-# usage: getHemeraMode
-function getHemeraMode() {
+# usage: getRecoCmdMode
+# Returns the recognized commands mode.
+function getRecoCmdMode() {
   # Ensures the mode file exists.
-  [ ! -f "$h_modeFile" ] && errorMessage "Unable to find Hemera mode file '$h_modeFile'" $ERROR_ENVIRONMENT
-  cat "$h_modeFile"
+  [ ! -f "$h_recoCmdModeFile" ] && errorMessage "Unable to find Hemera recognized command mode file '$h_recoCmdModeFile'" $ERROR_ENVIRONMENT
+  cat "$h_recoCmdModeFile"
 }
 
 #########################
@@ -468,7 +469,7 @@ function initializeCommandMap() {
   rm -f "$h_commandMap"
 
   # For each available commands.
-  for commandRaw in $( find "$installDir/scripts/core/command" -type f ! -name "*~" ! -name "*.txt" |sort |sed -e 's/[ \t]/£/g;' ); do
+  for commandRaw in $( find "$installDir/scripts/core/command" -maxdepth 1 -type f ! -name "*~" ! -name "*.txt" |sort |sed -e 's/[ \t]/£/g;' ); do
     local _command=$( echo "$commandRaw" |sed -e 's/£/ /g;' )
     local _commandName=$( basename "$_command" )
     

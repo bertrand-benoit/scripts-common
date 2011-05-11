@@ -461,6 +461,25 @@ function getConfigPath() {
 }
 
 #########################
+## Functions - uptime
+
+# usage: initializeUptime
+function initializeStartTime() {
+  date +'%s' > "$h_startTime"
+}
+
+# usage: getUptime
+function getUptime() {
+  [ ! -f "$h_startTime" ] && echo "not started" && exit 0
+  
+  local _currentTime=$( date +'%s' )
+  local _startTime=$( cat "$h_startTime" )
+  local _uptime=$( expr $_currentTime - $_startTime )
+
+  printf "%02dd %02dh:%02dm.%02ds" $(($_uptime/86400)) $(($_uptime%86400/3600)) $(($_uptime%3600/60)) $(($_uptime%60))
+}
+
+#########################
 ## Functions - commands
 
 # usage: initializeCommandMap

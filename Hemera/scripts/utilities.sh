@@ -432,7 +432,8 @@ function getConfigValue() {
   [ $( grep -re "^$1=" "$h_configurationFile" |wc -l ) -eq 0 ] && errorMessage "$1 configuration key not found" $ERROR_CONFIG_VARIOUS
 
   # Gets the value (may be empty).
-  grep -re "^$1=" "$h_configurationFile" |sed -e 's/^[^=]*=//;s/"//g;'
+  # N.B.: in case there is several, takes only the last one (interesting when there is several definition in configuration file).
+  grep -re "^$1=" "$h_configurationFile" |sed -e 's/^[^=]*=//;s/"//g;' |tail -n 1
 }
 
 # usage: getConfigValue <supported values> <value to check>

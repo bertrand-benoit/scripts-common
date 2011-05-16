@@ -45,6 +45,16 @@ source "$installDir/scripts/defineConstants.sh"
 #########################
 ## Functions - various
 
+# usage: getVersion
+function getVersion() {
+  # General version is given by the $H_VERSION variable.
+  # Before all, trying to get precise version in case of source code version.
+  revision=$( LANG=C svn info "$installDir" 2>&1|grep "^Revision:" |sed -e 's/Revision:[ \t][ \t]*/-r/' )
+
+  # Prints the general version and the potential precise version (will be empty if not defined).
+  echo "$H_VERSION$revision"
+}
+
 # usage: writeMessage <message> [<0 or 1>]
 # 0: keep on the same line
 # 1: move to next line

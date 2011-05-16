@@ -451,24 +451,34 @@ function checkAvailableValue() {
   [ $( echo "$1" |grep -w "$2" |wc -l ) -eq 1 ]
 }
 
-# usage: getConfigPath <config key>
+# usage: isAbsolutePath <path>
+# "true" if the path begins with "/"
+function isAbsolutePath() {
+  [[ "$1" =~ "^\/.*$" ]]
+}
+
+# usage: isSimplePath <path>
+# "true" if there is NO "/" character (and so the tool should be in PATH)
+function isSimplePath() {
+  [[ "$1" =~ "^[^\/]*$" ]]
+}
+
+# usage: getConfigPath <config key> [<path to prepend>]
+# <path to prepend>: the path to prepend if the path is NOT absolute and NOT simple.
+# Defaut <path to prepend> is $h_tpDir
 function getConfigPath() {
-  value=$( getConfigValue "$1" ) || return 1
+  local _configKey="$1" _pathToPreprend="${2:-$h_tpDir}"
+
+  value=$( getConfigValue "$_configKey" ) || return 1
 
   # Checks if it is an absolute path.
-  if [[ "$value" =~ "^\/.*$" ]]; then
-    echo "$value"
-    return 0
-  fi
+  isAbsolutePath "$value" && echo "$value" && return 0
 
   # Checks if it is a "simple" path.
-  if [[ "$value" =~ "^[^\/]*$" ]]; then
-    echo "$value"
-    return 0
-  fi
+  isSimplePath "$value" && echo "$value" && return 0
 
   # Prefixes with Hemera install directory path.
-  echo "$installDir/$value"
+  echo "$_pathToPreprend/$value"
 }
 
 #########################

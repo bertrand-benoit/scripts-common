@@ -489,7 +489,7 @@ function initializeCommandMap() {
   rm -f "$h_commandMap"
 
   # For each available commands.
-  for commandRaw in $( find "$installDir/scripts/core/command" -maxdepth 1 -type f ! -name "*~" ! -name "*.txt" |sort |sed -e 's/[ \t]/£/g;' ); do
+  for commandRaw in $( find "$h_coreDir/command" -maxdepth 1 -type f ! -name "*~" ! -name "*.txt" |sort |sed -e 's/[ \t]/£/g;' ); do
     local _command=$( echo "$commandRaw" |sed -e 's/£/ /g;' )
     local _commandName=$( basename "$_command" )
     
@@ -568,7 +568,7 @@ function manageAntHome() {
 # usage: manageTomcatHome
 # Ensures Tomcat environment is ok, and defines h_tomcatDir.
 function manageTomcatHome() {
-  local tomcatDir="$installDir/thirdParty/webServices/bin/tomcat"
+  local tomcatDir="$h_tpDir/webServices/bin/tomcat"
   [ ! -d "$tomcatDir" ] && errorMessage "Apache Tomcat '$tomcatDir' not found. You must either disable Tomcat activation (hemera.run.activation.tomcat), or install it/create a symbolic link." $ERROR_CONFIG_VARIOUS
   export h_tomcatDir="$tomcatDir"
 

@@ -36,7 +36,7 @@ source "$installDir/scripts/defineConstants.sh"
 #########################
 ## Global variables
 [ -z "$verbose" ] && verbose=0
-[ -z "$showError" ] && showError=1 # Should NOT be modified but in some very specific case (like checkConfig)
+[ -z "$checkConfAndQuit" ] && checkConfAndQuit=0 # special toggle defining if system must quit after configuration check (activate when using -X option of scripts)
 
 # Defines default category if not already defined.
 [ -z "$category" ] && category="general"
@@ -141,22 +141,6 @@ function checkGNUWhich() {
 # usage: checkEnvironment
 function checkEnvironment() {
   checkGNUWhich || errorMessage "GNU version of which not found. Please install it." $ERROR_ENVIRONMENT
-}
-
-# usage: checkBin <binary name/path>
-function checkBin() {
-  info "Checking binary: $1"
-  which "$1" >/dev/null 2>&1 && return 0
-  [ $showError -eq 0 ] && return 1
-  errorMessage "Unable to find binary $1." $ERROR_CHECK_BIN
-}
-
-# usage: checkDataFile <data file path>
-function checkDataFile() {
-  info "Checking data file: $1"
-  [ -f "$1" ] && return 0
-  [ $showError -eq 0 ] && return 1
-  errorMessage "Unable to find data file '$1'." $ERROR_CHECK_CONFIG
 }
 
 # usage: checkLSB
@@ -422,10 +406,11 @@ function manageDaemon() {
 # usage: daemonUsage <name>
 function daemonUsage() {
   local _name="$1"
-  echo -e "Usage: $0 -S||-T||-K [-hv]"
+  echo -e "Usage: $0 -S||-T||-K||-X [-hv]"
   echo -e "-S\tstart $_name daemon"
   echo -e "-T\tstatus $_name daemon"
   echo -e "-K\tstop $_name daemon"
+  echo -e "-X\tcheck configuration and quit"
   echo -e "-v\tactivate the verbose mode"
   echo -e "-h\tshow this usage"
   echo -e "\nYou must either start, status or stop the $_name daemon."
@@ -439,11 +424,16 @@ function daemonUsage() {
 # usage: getConfigValue <config key>
 function getConfigValue() {
   # Checks if the key exists.
-  [ $( grep -re "^$1=" "$h_configurationFile" |wc -l ) -eq 0 ] && errorMessage "$1 configuration key not found" $ERROR_CONFIG_VARIOUS
+  if [ $( grep -re "^$1=" "$h_configurationFile" 2>/dev/null|wc -l ) -eq 0 ]; then
+    # Prints error message (and exit) only if NOT in "check config and quit" mode.
+    [ $checkConfAndQuit -eq 0 ] && errorMessage "Configuration key '$1' NOT found" $ERROR_CONFIG_VARIOUS
+    echo -e "configuration key \E[31mNOT FOUND\E[0m" && return $ERROR_CONFIG_VARIOUS
+  fi
 
   # Gets the value (may be empty).
   # N.B.: in case there is several, takes only the last one (interesting when there is several definition in configuration file).
-  grep -re "^$1=" "$h_configurationFile" |sed -e 's/^[^=]*=//;s/"//g;' |tail -n 1
+  grep -re "^$1=" "$h_configurationFile" 2>/dev/null|sed -e 's/^[^=]*=//;s/"//g;' |tail -n 1
+  return 0
 }
 
 # usage: getConfigValue <supported values> <value to check>
@@ -463,11 +453,12 @@ function isSimplePath() {
   [[ "$1" =~ "^[^\/]*$" ]]
 }
 
-# usage: getConfigPath <config key> [<path to prepend>]
+# usage: getConfigPath <config key> [<path to prepend> <force prepend>]
 # <path to prepend>: the path to prepend if the path is NOT absolute and NOT simple.
 # Defaut <path to prepend> is $h_tpDir
+# <force prepend>: 0=disabled (default), 1=force prepend for "single path" (useful for data file)
 function getConfigPath() {
-  local _configKey="$1" _pathToPreprend="${2:-$h_tpDir}"
+  local _configKey="$1" _pathToPreprend="${2:-$h_tpDir}" _forcePrepend="${3:-0}"
 
   value=$( getConfigValue "$_configKey" ) || return 1
 
@@ -475,10 +466,110 @@ function getConfigPath() {
   isAbsolutePath "$value" && echo "$value" && return 0
 
   # Checks if it is a "simple" path.
-  isSimplePath "$value" && echo "$value" && return 0
+  isSimplePath "$value" && [ $_forcePrepend -eq 0 ] && echo "$value" && return 0
 
   # Prefixes with Hemera install directory path.
   echo "$_pathToPreprend/$value"
+}
+
+# usage: checkBin <binary name/path>
+function checkBin() {
+  # Informs only if not in 'checkConfAndQuit' mode.
+  [ $checkConfAndQuit -eq 0 ] && info "Checking binary '$1' ... "
+
+  # Checks if the binary is available.
+  which "$1" >/dev/null 2>&1 && return 0
+ 
+  # It is not the case, if NOT in 'checkConfAndQuit' mode, it is a fatal error.
+  [ $checkConfAndQuit -eq 0 ] && errorMessage "Unable to find data file '$1'." $ERROR_CHECK_BIN
+  # Otherwise, simple returns an error code.
+  return $ERROR_CHECK_BIN
+}
+
+# usage: checkDataFile <data file path>
+function checkDataFile() {
+  # Informs only if not in 'checkConfAndQuit' mode.
+  [ $checkConfAndQuit -eq 0 ] && info "Checking data file '$1' ... "
+
+  # Checks if the file exists.
+  [ -f "$1" ] && return 0
+ 
+  # It is not the case, if NOT in 'checkConfAndQuit' mode, it is a fatal error.
+  [ $checkConfAndQuit -eq 0 ] && errorMessage "Unable to find data file '$1'." $ERROR_CHECK_CONFIG
+  # Otherwise, simple returns an error code.
+  return $ERROR_CHECK_CONFIG
+}
+
+# usage: checkAndGetConfig <config key> <config type> [<path to prepend>]
+# <config key>: the full config key corresponding to configuration element in configuration file
+# <config type>: the type of config among
+#   $CONFIG_TYPE_OPTION: options -> nothing more will be done
+#   $CONFIG_TYPE_BIN: binary -> system will ensure binary path is available
+#   $CONFIG_TYPE_DATA: data -> data file path existence will be checked
+# <path to prepend>: (only for type $CONFIG_TYPE_BIN and $CONFIG_TYPE_DATA) the path to prepend if
+#  the path is NOT absolute and NOT simple. Defaut <path to prepend> is $h_tpDir
+# If all is OK, it defined the h_lastConfig variable with the requested configuration element.
+function checkAndSetConfig() {
+  local _configKey="$1" _configType="$2" _pathToPreprend="${3:-$h_tpDir}"
+  export h_lastConfig="NotFound" # reinit global variable.
+
+  [ -z "$_configKey" ] && errorMessage "checkAndSetConfig function badly used (configuration key not specified)"
+  [ -z "$_configType" ] && errorMessage "checkAndSetConfig function badly used (configuration type not specified)"
+
+  local _message="Checking '$_configKey' ... "
+
+  # Informs about config key to check, according to situation:
+  #  - in 'normal' mode, message is only shown in verbose mode
+  #  - in 'checkConfAndQuit' mode, message is always shown
+  [ $checkConfAndQuit -eq 0 ] && info "$_message" || writeMessage "$_message" 0
+
+  # Gets the value, according to the type of config.
+  if [ $_configType -eq $CONFIG_TYPE_OPTION ]; then
+    _value=$( getConfigValue "$_configKey" )
+    valueGetStatus=$?
+  else    
+    [ $_configType -eq $CONFIG_TYPE_DATA ] && forcePrepend=1 || forcePrepend=0
+    _value=$( getConfigPath "$_configKey" "$_pathToPreprend" $forcePrepend )
+    valueGetStatus=$?
+  fi
+
+  # Ensures value has been successfully got.
+  if [ $valueGetStatus -ne 0 ]; then
+    # Prints error messafe is any.
+    [ ! -z "$_value" ] && echo -e "$_value" |tee -a "${h_logFile:-/tmp/hemera.log}"
+    # If NOT in 'checkConfAndQuit' mode, it is a fatal error, so exists.
+    [ $checkConfAndQuit -eq 0 ] && exit $valueGetStatus
+    # Otherwise, simply returns an error status.
+    return $valueGetStatus
+  fi
+
+  # Checks if it is a path.
+  if [ $_configType -eq $CONFIG_TYPE_OPTION ]; then
+    # No sense.
+    checkPathStatus=0
+  elif [ $_configType -eq $CONFIG_TYPE_BIN ]; then
+    checkBin "$_value"
+    checkPathStatus=$?
+  elif [ $_configType -eq $CONFIG_TYPE_DATA ]; then
+    checkDataFile "$_value"
+    checkPathStatus=$?
+  fi
+
+  # Ensures path check has been successfully done.
+  if [ $checkPathStatus -ne 0 ]; then
+    # If NOT in 'checkConfAndQuit' mode, it is a fatal error, so exists.
+    [ $checkConfAndQuit -eq 0 ] && exit $checkPathStatus
+    # Otherwise, show an error message, and simply returns an error status.
+    echo -e "$_value \E[31mNOT FOUND\E[0m" |tee -a "${h_logFile:-/tmp/hemera.log}"
+    return $checkPathStatus
+  fi
+
+  # Here, all is OK, there is nothing more to do.
+  [ $checkConfAndQuit -eq 1 ] && echo "OK" |tee -a "${h_logFile:-/tmp/hemera.log}"
+
+  # Sets the global variable
+  export h_lastConfig="$_value"
+  return 0
 }
 
 #########################
@@ -545,8 +636,9 @@ function manageJavaHome() {
   # Checks if environment variable JAVA_HOME is defined.
   if [ -z "$JAVA_HOME" ]; then
     # Checks if it is defined in configuration file.
-    javaHome=$( getConfigValue "environment.java.home" ) || exit $ERROR_CONFIG_VARIOUS
-    [ -z "$javaHome" ] && errorMessage "You must either configure JAVA_HOME environment variable or $CONFIG_KEY.java.home configuration element." $ERROR_ENVIRONMENT
+    checkAndSetConfig "environment.java.home" "$CONFIG_TYPE_OPTION"    
+    javaHome="$h_lastConfig"
+    [ -z "$javaHome" ] && errorMessage "You must either configure JAVA_HOME environment variable or environment.java.home configuration element." $ERROR_ENVIRONMENT
 
     # Ensures it exists.
     [ ! -d "$javaHome" ] && errorMessage "environment.java.home defined $javaHome which is not found." $ERROR_CONFIG_VARIOUS
@@ -569,8 +661,9 @@ function manageAntHome() {
   # Checks if environment variable ANT_HOME is defined.
   if [ -z "$ANT_HOME" ]; then
     # Checks if it is defined in configuration file.
-    antHome=$( getConfigValue "environment.ant.home" ) || exit $ERROR_CONFIG_VARIOUS
-    [ -z "$antHome" ] && errorMessage "You must either configure ANT_HOME environment variable or $CONFIG_KEY.ant.home configuration element." $ERROR_ENVIRONMENT
+    checkAndSetConfig "environment.ant.home" "$CONFIG_TYPE_OPTION"    
+    antHome="$h_lastConfig"
+    [ -z "$antHome" ] && errorMessage "You must either configure ANT_HOME environment variable or environment.ant.home configuration element." $ERROR_ENVIRONMENT
 
     # Ensures it exists.
     [ ! -d "$antHome" ] && errorMessage "environment.ant.home defined $antHome which is not found." $ERROR_CONFIG_VARIOUS
@@ -580,7 +673,7 @@ function manageAntHome() {
 
   # Checks ant is available.
   local _antPath="$ANT_HOME/bin/ant"
-  [ ! -f "$_antPath" ] && errorMessage "Unable to find ant binary, ensure '$ANT_HOME' is the home of a Java Development Kit version 6." $ERROR_ENVIRONMENT
+  [ ! -f "$_antPath" ] && errorMessage "Unable to find ant binary, ensure '$ANT_HOME' is the home of an installation of Apache ANT." $ERROR_ENVIRONMENT
 
   writeMessage "Found: $( "$_antPath" -v 2>&1|head -n 1 )"
 }

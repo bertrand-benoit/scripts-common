@@ -481,7 +481,7 @@ function checkBin() {
   which "$1" >/dev/null 2>&1 && return 0
  
   # It is not the case, if NOT in 'checkConfAndQuit' mode, it is a fatal error.
-  [ $checkConfAndQuit -eq 0 ] && errorMessage "Unable to find data file '$1'." $ERROR_CHECK_BIN
+  [ $checkConfAndQuit -eq 0 ] && errorMessage "Unable to find binary '$1'." $ERROR_CHECK_BIN
   # Otherwise, simple returns an error code.
   return $ERROR_CHECK_BIN
 }
@@ -570,6 +570,37 @@ function checkAndSetConfig() {
   # Sets the global variable
   export h_lastConfig="$_value"
   return 0
+}
+
+# usage: checkAndFormatPath <paths>
+# ALL paths must be specified if a single parameter.
+function checkAndFormatPath() {
+  local _paths="$1"
+
+  formattedPath=""
+  for pathToCheckRaw in $( echo $_paths |sed -e 's/[ ]/€/g;s/:/ /g;' ); do
+    pathToCheck=$( echo "$pathToCheckRaw" |sed -e 's/€/ /g;' )
+
+    # Defines the completes path, according to absolute/relative path.
+    completePath="$pathToCheck"
+    ! isAbsolutePath "$pathToCheck" && completePath="$h_tpDir/$pathToCheck"
+
+    # Uses "ls" to complete the path in case there is wildcard.
+    if [ $( echo "$completePath" |grep "*" |wc -l ) -eq 1 ]; then
+      formattedWildcard=$( echo "$completePath" |sed -e 's/^/"/;s/$/"/;s/*/"*"/g;s/""$//;' )
+      completePath=$( ls -d $( eval echo $formattedWildcard ) )
+    fi
+
+    # Checks if it exists, if 'checkConfAndQuit' mode.
+    if [ $checkConfAndQuit -eq 1 ]; then
+      writeMessage "Checking path '$pathToCheck' ... " 0
+      [ -d "$completePath" ] && echo "OK" |tee -a "${h_logFile:-/tmp/hemera.log}" || echo -e "\E[31mNOT FOUND\E[0m" |tee -a "${h_logFile:-/tmp/hemera.log}"
+    fi
+
+    # In any case, updates the formatted path list.
+    formattedPath=$formattedPath:$completePath
+  done
+  echo "$formattedPath"
 }
 
 #########################

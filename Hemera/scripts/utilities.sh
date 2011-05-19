@@ -669,19 +669,39 @@ function manageJavaHome() {
     # Checks if it is defined in configuration file.
     checkAndSetConfig "environment.java.home" "$CONFIG_TYPE_OPTION"    
     javaHome="$h_lastConfig"
-    [ -z "$javaHome" ] && errorMessage "You must either configure JAVA_HOME environment variable or environment.java.home configuration element." $ERROR_ENVIRONMENT
+    if [ -z "$javaHome" ]; then
+      # It is a fatal error but in 'checkConfAndQuit' mode.
+      local _errorMessage="You must either configure JAVA_HOME environment variable or environment.java.home configuration element."
+      [ $checkConfAndQuit -eq 0 ] && errorMessage "$_errorMessage" $ERROR_ENVIRONMENT
+      warning "$_errorMessage" && return 0
+    fi
 
     # Ensures it exists.
-    [ ! -d "$javaHome" ] && errorMessage "environment.java.home defined $javaHome which is not found." $ERROR_CONFIG_VARIOUS
-
+    if [ ! -d "$javaHome" ]; then 
+      # It is a fatal error but in 'checkConfAndQuit' mode.
+      local _errorMessage="environment.java.home defined '$javaHome' which is not found."
+      [ $checkConfAndQuit -eq 0 ] && errorMessage "$_errorMessage" $ERROR_CONFIG_VARIOUS
+      warning "$_errorMessage" && return 0
+    fi
+    
     export JAVA_HOME="$javaHome"
   fi
 
   # Ensures it is a jdk home directory.
   local _javaPath="$JAVA_HOME/bin/java"
   local _javacPath="$JAVA_HOME/bin/javac"
-  [ ! -f "$_javaPath" ] && errorMessage "Unable to find java binary, ensure '$JAVA_HOME' is the home of a Java Development Kit version 6." $ERROR_ENVIRONMENT
-  [ ! -f "$_javacPath" ] && errorMessage "Unable to find javac binary, ensure '$JAVA_HOME' is the home of a Java Development Kit version 6." $ERROR_ENVIRONMENT
+  _errorMessage=""
+  if [ ! -f "$_javaPath" ]; then
+    _errorMessage="Unable to find java binary, ensure '$JAVA_HOME' is the home of a Java Development Kit version 6."
+  elif [ ! -f "$_javacPath" ]; then
+    _errorMessage="Unable to find javac binary, ensure '$JAVA_HOME' is the home of a Java Development Kit version 6."
+  fi
+
+  if [ ! -z "$_errorMessage" ]; then
+    # It is a fatal error but in 'checkConfAndQuit' mode.
+    [ $checkConfAndQuit -eq 0 ] && errorMessage "$_errorMessage" $ERROR_ENVIRONMENT
+    warning "$_errorMessage" && return 0
+  fi
 
   writeMessage "Found: $( "$_javaPath" -version 2>&1|head -n 2| sed -e 's/$/ [/;' |tr -d '\n' |sed -e 's/..$/]/' )"
 }
@@ -694,17 +714,32 @@ function manageAntHome() {
     # Checks if it is defined in configuration file.
     checkAndSetConfig "environment.ant.home" "$CONFIG_TYPE_OPTION"    
     antHome="$h_lastConfig"
-    [ -z "$antHome" ] && errorMessage "You must either configure ANT_HOME environment variable or environment.ant.home configuration element." $ERROR_ENVIRONMENT
+    if [ -z "$antHome" ]; then
+      # It is a fatal error but in 'checkConfAndQuit' mode.
+      local _errorMessage="You must either configure ANT_HOME environment variable or environment.ant.home configuration element."
+      [ $checkConfAndQuit -eq 0 ] && errorMessage "$_errorMessage" $ERROR_ENVIRONMENT
+      warning "$_errorMessage" && return 0
+    fi
 
     # Ensures it exists.
-    [ ! -d "$antHome" ] && errorMessage "environment.ant.home defined $antHome which is not found." $ERROR_CONFIG_VARIOUS
+    if [ ! -d "$antHome" ]; then 
+      # It is a fatal error but in 'checkConfAndQuit' mode.
+      local _errorMessage="environment.ant.home defined '$antHome' which is not found."
+      [ $checkConfAndQuit -eq 0 ] && errorMessage "$_errorMessage" $ERROR_CONFIG_VARIOUS
+      warning "$_errorMessage" && return 0
+    fi
 
     export ANT_HOME="$antHome"
   fi
 
   # Checks ant is available.
   local _antPath="$ANT_HOME/bin/ant"
-  [ ! -f "$_antPath" ] && errorMessage "Unable to find ant binary, ensure '$ANT_HOME' is the home of an installation of Apache ANT." $ERROR_ENVIRONMENT
+  if [ ! -f "$_antPath" ]; then
+    # It is a fatal error but in 'checkConfAndQuit' mode.
+    local _errorMessage="Unable to find ant binary, ensure '$ANT_HOME' is the home of an installation of Apache Ant." 
+    [ $checkConfAndQuit -eq 0 ] && errorMessage "$_errorMessage" $ERROR_ENVIRONMENT
+    warning "$_errorMessage" && return 0
+  fi
 
   writeMessage "Found: $( "$_antPath" -v 2>&1|head -n 1 )"
 }

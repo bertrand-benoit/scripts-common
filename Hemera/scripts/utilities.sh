@@ -748,7 +748,13 @@ function manageAntHome() {
 # Ensures Tomcat environment is ok, and defines h_tomcatDir.
 function manageTomcatHome() {
   local tomcatDir="$h_tpDir/webServices/bin/tomcat"
-  [ ! -d "$tomcatDir" ] && errorMessage "Apache Tomcat '$tomcatDir' not found. You must either disable Tomcat activation (hemera.run.activation.tomcat), or install it/create a symbolic link." $ERROR_CONFIG_VARIOUS
+  if [ ! -d "$tomcatDir" ]; then
+    # It is a fatal error but in 'checkConfAndQuit' mode.
+    local _errorMessage="Apache Tomcat '$tomcatDir' not found. You must either disable Tomcat activation (hemera.run.activation.tomcat), or install it/create a symbolic link."
+    [ $checkConfAndQuit -eq 0 ] && errorMessage "$_errorMessage" $ERROR_CONFIG_VARIOUS
+    warning "$_errorMessage" && return 0
+  fi
+  
   export h_tomcatDir="$tomcatDir"
 
   # Checks the Tomcat version.

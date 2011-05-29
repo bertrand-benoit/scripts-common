@@ -191,6 +191,29 @@ function extractI18Nelement() {
   grep -re "^[ \t]*[^#]" "$_localeFile" |sort > "$_destFile"
 }
 
+# usage: checkLocale
+function checkLocale() {
+  [ $checkConfAndQuit -eq 0 ] && info "Checking LANG environment variable ... "
+
+  # Checks LANG is defined with UTF-8.
+  if [ $( echo $LANG |grep -i "[.]utf[-]*8" |wc -l ) -eq 0 ] ; then
+      # It is a fatal error but in 'checkConfAndQuit' mode.
+      warning "You must update your LANG environment variable to use the UTF-8 charmaps ('${LANG:-NONE}' detected). Until then Hemera will attempt using en_US.UTF-8."
+
+      export LANG="en_US.UTF-8"
+  fi
+
+  # Ensures defined LANG is avaulable on the OS.
+  if [ $( locale -a 2>/dev/null |grep -i $LANG |wc -l ) -eq 0 ] && [ $( locale -a 2>/dev/null |grep $( echo $LANG |sed -e 's/UTF[-]*8/utf8/' ) |wc -l ) -eq 0 ]; then
+    # It is a fatal error but in 'checkConfAndQuit' mode.
+    warning "Although the current OS locale '$LANG' defines to use the UTF-8 charmaps, it is not available (checked with 'locale -a'). You must install it or update your LANG environment variable. Until then Hemera will attempt using en_US.UTF-8."
+
+    export LANG="en_US.UTF-8"
+  fi
+
+  return 0
+}
+
 #########################
 ## Functions - Recognized Commands mode
 # usage: initRecoCmdMode

@@ -441,6 +441,12 @@ function daemonUsage() {
   exit $ERROR_USAGE
 }
 
+# usage: isHemeraComponentStarted
+# returns <true> if at least one component is started (regarding PID files).
+function isHemeraComponentStarted() {
+  [ $( find "$h_pidDir" -type f |wc -l ) -gt 0 ]
+}
+
 #########################
 ## Functions - configuration
 

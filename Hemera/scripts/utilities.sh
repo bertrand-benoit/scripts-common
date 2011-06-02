@@ -214,6 +214,16 @@ function checkLocale() {
   return 0
 }
 
+# usage: getOfflineDocPath
+# echoes the offline documentation path if any, empty string otherwise.
+function getOfflineDocPath() {
+  local _docPath="$installDir/doc/HemeraBook/index.html"
+
+  [ ! -f "$_docPath" ] && echo "" && return 1
+  echo "$_docPath"
+  return 0
+}
+
 #########################
 ## Functions - Recognized Commands mode
 # usage: initRecoCmdMode

@@ -45,14 +45,67 @@ source "$installDir/scripts/defineConstants.sh"
 #########################
 ## Functions - various
 
+# usage: _doGetVersion <NEWS file path>
+# This method returns the more recent version of the given NEWS file path.
+# It can be used to define version of any installation of Hemera (e.g. while upgrading).
+function _doGetVersion() {
+  local _newsFile="$1"
+
+  # Lookup the version in the NEWS file (which did not exist in version 0.1)
+  [ ! -f "$_newsFile" ] && echo "0.1.0" && return 0
+
+  # Extracts the version.
+  grep "version [0-9]" "$_newsFile" |head -n 1 |sed -e 's/^.*version[ ]\([0-9][0-9.]*\)[ ].*$/\1/;'
+}
+
 # usage: getVersion
 function getVersion() {
+  _doGetVersion "$installDir/NEWS"
+}
+
+# usage: getDetailedVersion
+function getDetailedVersion() {
   # General version is given by the $H_VERSION variable.
   # Before all, trying to get precise version in case of source code version.
   revision=$( LANG=C svn info "$installDir" 2>&1|grep "^Revision:" |sed -e 's/Revision:[ \t][ \t]*/-r/' )
 
   # Prints the general version and the potential precise version (will be empty if not defined).
   echo "$H_VERSION$revision"
+}
+
+# usage: isVersionGreater <version 1> <version 2>
+# Version syntax must be digits separated by dot (e.g. 0.1.0).
+function isVersionGreater() {
+  # Safeguard - ensures syntax is respected.
+  [ $( echo "$1" |grep -e "^[0-9][0-9.]*$" |wc -l ) -eq 1 ] || errorMessage "Unable to compare version because version '$1' does not fit the syntax (digits separated by dot)" $ERROR_ENVIRONMENT
+  [ $( echo "$2" |grep -e "^[0-9][0-9.]*$" |wc -l ) -eq 1 ] || errorMessage "Unable to compare version because version '$2' does not fit the syntax (digits separated by dot)" $ERROR_ENVIRONMENT
+
+  # Defines arrays with specified versions.
+  local _v1Array=( ${1//./ } )
+  local _v2Array=( ${2//./ } )
+
+  # Lookups version element until they are not the same.
+  index=0
+  while [ ${_v1Array[$index]} -eq ${_v2Array[$index]} ]; do
+    let index++
+
+    # Ensures there is another element for each version.
+    [ -z "${_v1Array[$index]}" ] && v1End=1 || v1End=0
+    [ -z "${_v2Array[$index]}" ] && v2End=1 || v2End=0
+
+    # Continues on next iteration if NONE is empty.
+    [ $v1End -eq 0 ] && [ $v2End -eq 0 ] && continue
+
+    # If the two verions have been fully managed, they are equals (so the first is NOT greater).
+    [ $v1End -eq 1 ] && [ $v2End -eq 1 ] && return 1
+
+    # if the first version has not been fully managed, it is greater
+    #  than the second (there is still version information), and vice versa.
+    [ $v1End -eq 0 ] && return 0 || return 1
+  done
+
+  # returns the comparaison of the element with 'index'.
+  [ ${_v1Array[$index]} -gt ${_v2Array[$index]} ]
 }
 
 # usage: writeMessage <message> [<0 or 1>]

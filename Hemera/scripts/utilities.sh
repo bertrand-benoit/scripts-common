@@ -238,14 +238,14 @@ function matchesOneOf() {
   return 1
 }
 
-# usage: extractI18Nelement <locale file> <destination file>
+# usage: extractI18Nelement <i18n file> <destination file>
 function extractI18Nelement() {
-  local _localeFile="$1" _destFile="$2"
-  grep -re "^[ \t]*[^#]" "$_localeFile" |sort > "$_destFile"
+  local _i18nFile="$1" _destFile="$2"
+  grep -re "^[ \t]*[^#]" "$_i18nFile" |sort > "$_destFile"
 }
 
-# usage: checkLocale
-function checkLocale() {
+# usage: checkOSLocale
+function checkOSLocale() {
   [ $checkConfAndQuit -eq 0 ] && info "Checking LANG environment variable ... "
 
   # Checks LANG is defined with UTF-8.

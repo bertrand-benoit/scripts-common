@@ -277,42 +277,12 @@ function getOfflineDocPath() {
   return 0
 }
 
-#########################
-## Functions - Recognized Commands mode
-# usage: initRecoCmdMode
-# Creates hemera mode file with normal mode.
-function initRecoCmdMode() {
-  updateRecoCmdMode "$H_RECO_CMD_MODE_NORMAL_I18N"
-}
-
-# usage: updateRecoCmdMode <i18n mode>
-function updateRecoCmdMode() {
-  local _newModei18N="$1"
-
-  # Defines the internal mode corresponding to this i18n mode (usually provided by speech recognition).
-  local _modeIndex=0
-  for availableMode in ${H_SUPPORTED_RECO_CMD_MODES_I18N[*]}; do
-    # Checks if this is the specified mode.
-    if [ "$_newModei18N" = "$availableMode" ]; then
-      # It is the case, writes the corresponding internal mode in the mode file.
-      echo "${H_SUPPORTED_RECO_CMD_MODES[$_modeIndex]}" > "$h_recoCmdModeFile"
-      return 0
-    fi
-
-    let _modeIndex++
-  done
-
-  # No corresponding internal mode has been found, it is fatal.
-  # It should NEVER happen because mode must have been checked before this call.
-  errorMessage "Unable to find corresponding internal mode of I18N mode '$_newModei18N'" $ERROR_ENVIRONMENT
-}
-
-# usage: getRecoCmdMode
-# Returns the recognized commands mode.
-function getRecoCmdMode() {
-  # Ensures the mode file exists.
-  [ ! -f "$h_recoCmdModeFile" ] && errorMessage "Unable to find Hemera recognized command mode file '$h_recoCmdModeFile'" $ERROR_ENVIRONMENT
-  cat "$h_recoCmdModeFile"
+# usage: getURLContents <url> <destination file>
+function getURLContents() {
+  info "Getting contents of URL '$1'"
+  ! wget --user-agent="Mozilla/Firefox 3.6" -q "$1" -O "$2" && writeMessage "Error while getting contents of URL '$1'" && return 1
+  info "Got contents of URL '$1' with success"
+  return 0
 }
 
 #########################
@@ -714,6 +684,46 @@ function getUptime() {
   printf "%02dd %02dh:%02dm.%02ds" $(($_uptime/86400)) $(($_uptime%86400/3600)) $(($_uptime%3600/60)) $(($_uptime%60))
 }
 
+
+#########################
+## Functions - Recognized Commands mode
+# usage: initRecoCmdMode
+# Creates hemera mode file with normal mode.
+function initRecoCmdMode() {
+  updateRecoCmdMode "$H_RECO_CMD_MODE_NORMAL_I18N"
+}
+
+# usage: updateRecoCmdMode <i18n mode>
+function updateRecoCmdMode() {
+  local _newModei18N="$1"
+
+  # Defines the internal mode corresponding to this i18n mode (usually provided by speech recognition).
+  local _modeIndex=0
+  for availableMode in ${H_SUPPORTED_RECO_CMD_MODES_I18N[*]}; do
+    # Checks if this is the specified mode.
+    if [ "$_newModei18N" = "$availableMode" ]; then
+      # It is the case, writes the corresponding internal mode in the mode file.
+      echo "${H_SUPPORTED_RECO_CMD_MODES[$_modeIndex]}" > "$h_recoCmdModeFile"
+      return 0
+    fi
+
+    let _modeIndex++
+  done
+
+  # No corresponding internal mode has been found, it is fatal.
+  # It should NEVER happen because mode must have been checked before this call.
+  errorMessage "Unable to find corresponding internal mode of I18N mode '$_newModei18N'" $ERROR_ENVIRONMENT
+}
+
+# usage: getRecoCmdMode
+# Returns the recognized commands mode.
+function getRecoCmdMode() {
+  # Ensures the mode file exists.
+  [ ! -f "$h_recoCmdModeFile" ] && errorMessage "Unable to find Hemera recognized command mode file '$h_recoCmdModeFile'" $ERROR_ENVIRONMENT
+  cat "$h_recoCmdModeFile"
+}
+
+
 #########################
 ## Functions - commands
 
@@ -750,6 +760,7 @@ function getMappedCommand() {
   # Attempts to get mapped command script.
   echo $( grep "^$_commandName=" "$h_commandMap" |sed -e 's/^[^=]*=//g;' )
 }
+
 
 #########################
 ## Functions - source code management

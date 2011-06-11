@@ -51,6 +51,9 @@ checkConfAndQuit=${checkConfAndQuit:-0}
 category=${category:-general}
 # By default, system logs messages on console.
 noconsole=${noconsole:-0}
+# By default, each component has a specific log file
+#  (only main Hemera script can continue to log in same file).
+continueLogFile=${continueLogFile:-0}
 # Initializes temporary log file with temporary value.
 h_logFile=${h_logFile:-$H_DEFAULT_LOG}
 
@@ -734,6 +737,11 @@ function checkAndFormatPath() {
 # usage: initializeUptime
 function initializeStartTime() {
   date +'%s' > "$h_startTime"
+}
+
+# usage: finalizeStartTime
+function finalizeStartTime() {
+  rm -f "$h_startTime"
 }
 
 # usage: getUptime

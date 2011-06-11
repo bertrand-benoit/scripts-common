@@ -493,7 +493,7 @@ function manageDaemon() {
       isRunningProcess "$_pidFile" "$_processName" && writeMessage "$_name is already running." && return 0
 
       # Starts it, launching this script in daemon mode.
-      h_logFile="$_logFile" "$0" -D >>"$_outputFile" &
+      h_logFile="$_logFile" noconsole=1 "$0" -D >>"$_outputFile" &
       writeMessage "Launched $_name."
     ;;
 

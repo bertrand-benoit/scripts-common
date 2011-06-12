@@ -163,72 +163,63 @@ function isVersionGreater() {
 # <newline>: 0 to stay on same line, 1 to break line
 # <exit code>: the exit code (usually for ERROR message), -1 for NO exit.
 function _doWriteMessage() {
-  local _level="$1" _message="$2" _newLine="$3" _exitCode="$4"
+  local _level="$1" _message="$2" _newLine="${3:-1}" _exitCode="${4:--1}"
+
+  # Does nothing if INFO message and NOT verbose.
+  [ $verbose -eq 0 ] && [ "$_level" = "$H_INFO" ] && return 0
+
   local _messageTime=$(date +"%d/%m/%y %H:%M.%S")
 
-  # TODO: manage level, and exit code
-  # TODO: use printf[ln]
-
-  echoOption="-e"
-  [ $_newLine -eq 0 ] && echoOption="-ne"
+  # Manages level.
+  _messagePrefix=""
+  [ "$_level" = "$H_INFO" ] && _messagePrefix="INFO: "
+  [ "$_level" = "$H_WARNING" ] && _messagePrefix="\E[31m\E[4mWARNING\E[0m: "
+  [ "$_level" = "$H_ERROR" ] && _messagePrefix="\E[31m\E[4mERROR\E[0m: "
+  
+  [ $_newLine -eq 0 ] && printMessageEnd="" || printMessageEnd="\n"
 
   # Checks if message must be shown on console.
-  if [ -z "$noconsole" ] || [ $noconsole -eq 0 ]; then
-    echo $echoOption "$_messageTime  [$category]  $_message" |tee -a "$h_logFile"
+  if [ $noconsole -eq 0 ]; then
+    printf "%-17s %-15s $_messagePrefix%s$printMessageEnd" "$_messageTime" "[$category]" "$_message" |tee -a "$h_logFile"
   else
-    echo $echoOption "$_messageTime  [$category]  $_message" >> "$h_logFile"
+    printf "%-17s %-15s $_messagePrefix%s$printMessageEnd" "$_messageTime" "[$category]" "$_message" >> "$h_logFile"
   fi
+
+  # Manages exit if needed.
+  [ $_exitCode -eq -1 ] && return 0
+  exit $_exitCode
 }
 
 # usage: writeMessage <message>
 # Shows the message, and moves to next line.
 function writeMessage() {
-  _doWriteMessage 0 "$1" 1 -1
+  _doWriteMessage $H_MESSAGE "$1" "${2:-1}" -1
 }
 
 # usage: writeMessageSL <message>
 # Shows the message, and stays to same line.
 function writeMessageSL() {
-  _doWriteMessage 0 "$1" 0 -1
+  _doWriteMessage $H_MESSAGE "$1" 0 -1
 }
 
 # usage: info <message> [<0 or 1>]
 # Shows message only if verbose is ON.
+# Stays on the same line of "0" has been specified
 function info() {
-  [ $verbose -eq 0 ] && return 0
-  local message="$1"
-  shift
-  writeMessage "INFO: $message" $*
+  _doWriteMessage $H_INFO "$1" ${2:-1}
 }
 
-# usage: warning <message>
+# usage: warning <message> [<0 or 1>]
 # Shows warning message.
+# Stays on the same line of "0" has been specified
 function warning() {
-  local message="$1"
-  messageTime=$(date +"%d/%m/%y %H:%M.%S")
-
-  # Checks if message must be shown on console.
-  if [ -z "$noconsole" ] || [ $noconsole -eq 0 ]; then
-    echo -e "$messageTime  [$category]  \E[31m\E[4mWARNING\E[0m: $message" |tee -a "$h_logFile" >&2
-  else
-    echo -e "$messageTime  [$category]  \E[31m\E[4mWARNING\E[0m: $message" >> "$h_logFile"
-  fi
+  _doWriteMessage $H_WARNING "$1" ${2:-1}
 }
 
 # usage: errorMessage <message> [<exit code>]
 # Shows error message and exits.
 function errorMessage() {
-  local message="$1"
-  messageTime=$(date +"%d/%m/%y %H:%M.%S")
-
-  # Checks if message must be shown on console.
-  if [ -z "$noconsole" ] || [ $noconsole -eq 0 ]; then
-    echo -e "$messageTime  [$category]  \E[31m\E[4mERROR\E[0m: $message" |tee -a "$h_logFile" >&2
-  else
-    echo -e "$messageTime  [$category]  \E[31m\E[4mERROR\E[0m: $message" >> "$h_logFile"
-  fi
-
-  exit ${2:-$ERROR_DEFAULT}
+  _doWriteMessage $H_ERROR "$1" 1 ${2:-$ERROR_DEFAULT}
 }
 
 # usage: updateStructure <dir path>
@@ -761,7 +752,7 @@ function getUptime() {
 # usage: initRecoCmdMode
 # Creates hemera mode file with normal mode.
 function initRecoCmdMode() {
-  updateRecoCmdMode "$H_RECO_CMD_MODE_NORMAL_I18N"
+  updateRecoCmdMode "$H_RECO_CMD_MODE_PARROT_I18N" # TODO: restore default value
 }
 
 # usage: updateRecoCmdMode <i18n mode>

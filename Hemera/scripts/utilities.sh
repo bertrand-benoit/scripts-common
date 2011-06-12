@@ -752,7 +752,7 @@ function getUptime() {
 # usage: initRecoCmdMode
 # Creates hemera mode file with normal mode.
 function initRecoCmdMode() {
-  updateRecoCmdMode "$H_RECO_CMD_MODE_PARROT_I18N" # TODO: restore default value
+  updateRecoCmdMode "$H_RECO_CMD_MODE_NORMAL_I18N"
 }
 
 # usage: updateRecoCmdMode <i18n mode>

@@ -60,6 +60,7 @@ h_logFile=${h_logFile:-$H_DEFAULT_LOG}
 # Initializes environment variables if not already the case.
 ANT_HOME=${ANT_HOME:-}
 JAVA_HOME=${JAVA_HOME:-}
+LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-}
 
 #########################
 ## Functions - various
@@ -385,6 +386,14 @@ function isRunningProcess() {
 
   # Checks if PID file exists, otherwise regard process as NOT running.
   pidToCheck=$( getPIDFromFile "$_pidFile" ) || return 1
+
+  # Special hacks to help users. Some application uses symbolic links, and so running process name
+  #  won't be the same than launched process name. For instance it is the case with SoX (in particular
+  #  when source code has been compiled).
+  # This is the list of "synonyms":
+  #  - sox/play/rec/lt-sox
+  [ "$_processName" = "play" ] && _processName="$_processName|sox"
+  [ "$_processName" = "rec" ] && _processName="$_processName|sox"
 
   # Checks if a process with specified PID is running.
   info "Checking running process, PID=$pidToCheck, process=$_processName."

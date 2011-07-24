@@ -79,6 +79,10 @@ function dumpFuncCall() {
   [ "$_exitStatus" -eq $ERROR_BAD_CLI ] && return 0
   [ "$_exitStatus" -eq $ERROR_INPUT_PROCESS ] && return 0
 
+  # Ignores the call if the system is currently in _doWriteMessage, in which 
+  #  case the exit status has been "manually" executed after error message shown.
+  [ "${FUNCNAME[1]}" = "_doWriteMessage" ] && return 0
+
   message="Status $_exitStatus at "
 
   # Disables call when it corresponds to the warning exit status of a previous call to this function.

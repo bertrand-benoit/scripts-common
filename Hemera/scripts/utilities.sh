@@ -22,6 +22,7 @@
 # Description: provides lots of utilities functions.
 #
 # This script must NOT be directly called.
+# installDir variable must be defined.
 
 #########################
 ## Global configuration
@@ -34,13 +35,16 @@ set -o nounset
 # Traces error in function & co.
 set -o errtrace
 
+# Ensures installDir is defined; then ensured sub directory scripts is available.
+# It may NOT be the case if user has NOT installed GNU version of which and launched scripts
+#  with particular $PWD (for instance launching setupHemera.sh being in the scripts sub directory).
+[ -z "$installDir" ] && echo -e "This script must NOT be directly called. installDir variable not defined" >&2 && exit 1
+[ -d "$installDir/scripts" ] && [ $( LANG=C which --version 2>&1|head -n 1 |grep -w "GNU" |wc -l ) -ne 1 ] && echo -e "\E[31m\E[4mERROR\E[0m: failure in path management; you MUST have a GNU version of 'which' tool (check Hemera documentation)." && exit 1
+source "$installDir/scripts/defineConstants.sh"
+
 # Dumps function call in case of error, or when exiting with something else than status 0.
 trap '_status=$?; dumpFuncCall $_status' ERR
 trap '_status=$?; [ $_status -ne 0 ] && dumpFuncCall $_status' EXIT
-
-# Ensures installDir is defined.
-[ -z "$installDir" ] && echo -e "This script must NOT be directly called. installDir variable not defined" >&2 && exit 1
-source "$installDir/scripts/defineConstants.sh"
 
 #########################
 ## Global variables
@@ -248,7 +252,7 @@ function getLinesFromNToP() {
 }
 
 # usage: checkGNUWhich
-# Ensures "which" is a GNU which.
+# Ensures "which" is a GNU which.
 function checkGNUWhich() {
   [ $( LANG=C which --version 2>&1|head -n 1 |grep -w "GNU" |wc -l ) -eq 1 ]
 }

@@ -802,6 +802,28 @@ function getRecoCmdMode() {
   cat "$h_recoCmdModeFile"
 }
 
+# usage: initializeMonitor
+function initializeMonitor() {
+  rm -f "$h_monitor"
+  logMonitor "$H_MONITOR_BEGIN"
+}
+
+# usage: logMonitor <i18n message> [<input>]
+# <i18n message> must correspond of a i18n element defined in corresponding i18n file.
+# <input> in case of plugin activity message (usually the case)
+function logMonitor() {
+  local _message="$1" _input="${2:-}"
+
+  # TODO: adapt date to language
+  local completeMessage="$(date +"%d/%m/%y %H:%M.%S") $_message"
+  [ ! -z "$_input" ] && completeMessage="$completeMessage ($_input)"
+  echo "$completeMessage" >> "$h_monitor"
+}
+
+# usage: finalizeStartTime
+function finalizeMonitor() {
+  logMonitor "$H_MONITOR_END"
+}
 
 #########################
 ## Functions - commands

@@ -39,7 +39,7 @@ set -o errtrace
 # It may NOT be the case if user has NOT installed GNU version of which and launched scripts
 #  with particular $PWD (for instance launching setupHemera.sh being in the scripts sub directory).
 [ -z "$installDir" ] && echo -e "This script must NOT be directly called. installDir variable not defined" >&2 && exit 1
-[ ! -d "$installDir/scripts" ] && [ $( LANG=C which --version 2>&1|head -n 1 |grep -w "GNU" |wc -l ) -ne 1 ] && echo -e "\E[31m\E[4mERROR\E[0m: failure in path management; you MUST have a GNU version of 'which' tool (check Hemera documentation)." && exit 1
+[ ! -d "$installDir/scripts" ] && [ $( LANG=C which --version 2>&1|head -n 1 |grep -cw "GNU" ) -ne 1 ] && echo -e "\E[31m\E[4mERROR\E[0m: failure in path management; you MUST have a GNU version of 'which' tool (check Hemera documentation)." && exit 1
 source "$installDir/scripts/defineConstants.sh"
 
 # Dumps function call in case of error, or when exiting with something else than status 0.
@@ -135,8 +135,8 @@ function getDetailedVersion() {
 # Version syntax must be digits separated by dot (e.g. 0.1.0).
 function isVersionGreater() {
   # Safeguard - ensures syntax is respected.
-  [ $( echo "$1" |grep -e "^[0-9][0-9.]*$" |wc -l ) -eq 1 ] || errorMessage "Unable to compare version because version '$1' does not fit the syntax (digits separated by dot)" $ERROR_ENVIRONMENT
-  [ $( echo "$2" |grep -e "^[0-9][0-9.]*$" |wc -l ) -eq 1 ] || errorMessage "Unable to compare version because version '$2' does not fit the syntax (digits separated by dot)" $ERROR_ENVIRONMENT
+  [ $( echo "$1" |grep -ce "^[0-9][0-9.]*$" ) -eq 1 ] || errorMessage "Unable to compare version because version '$1' does not fit the syntax (digits separated by dot)" $ERROR_ENVIRONMENT
+  [ $( echo "$2" |grep -ce "^[0-9][0-9.]*$" ) -eq 1 ] || errorMessage "Unable to compare version because version '$2' does not fit the syntax (digits separated by dot)" $ERROR_ENVIRONMENT
 
   # Defines arrays with specified versions.
   local _v1Array=( ${1//./ } )
@@ -254,7 +254,7 @@ function getLinesFromNToP() {
 # usage: checkGNUWhich
 # Ensures "which" is a GNU which.
 function checkGNUWhich() {
-  [ $( LANG=C which --version 2>&1|head -n 1 |grep -w "GNU" |wc -l ) -eq 1 ]
+  [ $( LANG=C which --version 2>&1|head -n 1 |grep -cw "GNU" ) -eq 1 ]
 }
 
 # usage: checkEnvironment
@@ -315,7 +315,7 @@ function checkOSLocale() {
   [ $checkConfAndQuit -eq 0 ] && info "Checking LANG environment variable ... "
 
   # Checks LANG is defined with UTF-8.
-  if [ $( echo $LANG |grep -i "[.]utf[-]*8" |wc -l ) -eq 0 ] ; then
+  if [ $( echo $LANG |grep -ci "[.]utf[-]*8" ) -eq 0 ] ; then
       # It is a fatal error but in 'checkConfAndQuit' mode.
       warning "You must update your LANG environment variable to use the UTF-8 charmaps ('${LANG:-NONE}' detected). Until then Hemera will attempt using en_US.UTF-8."
 
@@ -323,7 +323,7 @@ function checkOSLocale() {
   fi
 
   # Ensures defined LANG is avaulable on the OS.
-  if [ $( locale -a 2>/dev/null |grep -i $LANG |wc -l ) -eq 0 ] && [ $( locale -a 2>/dev/null |grep $( echo $LANG |sed -e 's/UTF[-]*8/utf8/' ) |wc -l ) -eq 0 ]; then
+  if [ $( locale -a 2>/dev/null |grep -ci $LANG ) -eq 0 ] && [ $( locale -a 2>/dev/null |grep -c $( echo $LANG |sed -e 's/UTF[-]*8/utf8/' ) ) -eq 0 ]; then
     # It is a fatal error but in 'checkConfAndQuit' mode.
     warning "Although the current OS locale '$LANG' defines to use the UTF-8 charmaps, it is not available (checked with 'locale -a'). You must install it or update your LANG environment variable. Until then Hemera will attempt using en_US.UTF-8."
 
@@ -412,7 +412,7 @@ function isRunningProcess() {
 
   # Checks if a process with specified PID is running.
   info "Checking running process, PID=$pidToCheck, process=$_processName."
-  [ $( ps h -p "$pidToCheck" |grep -E "$_processName($|[ \t])" |wc -l ) -eq 1 ] && return 0
+  [ $( ps h -p "$pidToCheck" |grep -cE "$_processName($|[ \t])" ) -eq 1 ] && return 0
 
   # It is not the case, informs and deletes the PID file.
   deletePIDFile "$_pidFile"
@@ -586,7 +586,7 @@ function daemonUsage() {
 # usage: getConfigValue <config key>
 function getConfigValue() {
   # Checks if the key exists.
-  if [ $( grep -re "^$1=" "$h_configurationFile" 2>/dev/null|wc -l ) -eq 0 ]; then
+  if [ $( grep -cre "^$1=" "$h_configurationFile" 2>/dev/null ) -eq 0 ]; then
     # Prints error message (and exit) only if NOT in "check config and quit" mode.
     [ $checkConfAndQuit -eq 0 ] && errorMessage "Configuration key '$1' NOT found" $ERROR_CONFIG_VARIOUS
     echo -e "configuration key \E[31mNOT FOUND\E[0m" && return $ERROR_CONFIG_VARIOUS
@@ -600,7 +600,7 @@ function getConfigValue() {
 
 # usage: getConfigValue <supported values> <value to check>
 function checkAvailableValue() {
-  [ $( echo "$1" |grep -w "$2" |wc -l ) -eq 1 ]
+  [ $( echo "$1" |grep -cw "$2" ) -eq 1 ]
 }
 
 # usage: isAbsolutePath <path>
@@ -748,7 +748,7 @@ function checkAndFormatPath() {
     ! isAbsolutePath "$pathToCheck" && completePath="$h_tpDir/$pathToCheck"
 
     # Uses "ls" to complete the path in case there is wildcard.
-    if [ $( echo "$completePath" |grep "*" |wc -l ) -eq 1 ]; then
+    if [ $( echo "$completePath" |grep -c "*" ) -eq 1 ]; then
       formattedWildcard=$( echo "$completePath" |sed -e 's/^/"/;s/$/"/;s/*/"*"/g;s/""$//;' )
       completePath=$( ls -d $( eval echo $formattedWildcard ) )
     fi

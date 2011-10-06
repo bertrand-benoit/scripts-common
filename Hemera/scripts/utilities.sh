@@ -354,18 +354,29 @@ function getURLContents() {
 #########################
 ## Functions - PID & Process management
 
-# usage: writePIDFile <pid file>
+# usage: writePIDFile <pid file> <process name>
 function writePIDFile() {
-  local _pidFile="$1"
+  local _pidFile="$1" _processName="$2"
   [ -f "$_pidFile" ] && errorMessage "PID file '$_pidFile' already exists."
-  echo "$$" > "$_pidFile"
-  info "Written PID '$$' in file '$1'."
+  echo "processName=$_processName" > "$_pidFile"
+  echo "pid=$$" >> "$_pidFile"
+  info "Written PID '$$' of process '$_processName' in file '$1'."
 }
 
 # usage: deletePIDFile <pid file>
 function deletePIDFile() {
   info "Removing PID file '$1'"
   rm -f "$1"
+}
+
+# usage: extractProcessNameFromFile <pid file>
+function extractProcessNameFromFile() {
+  grep -e "^processName=" "$1" |head -n 1 |sed -e 's/^[^=]*=//'
+}
+
+# usage: getPIDFromFile <pid file>
+function extractPIDFromFile() {
+  grep -e "^pid=" "$1" |head -n 1 |sed -e 's/^pid=\([0-9][0-9]*\)$/\1/'
 }
 
 # usage: getPIDFromFile <pid file>
@@ -376,7 +387,7 @@ function getPIDFromFile() {
   [ ! -f "$_pidFile" ] && info "PID file '$_pidFile' not found." && return 1
 
   # Gets PID from file, and ensures it is defined.
-  local pidToCheck=$( head -n 1 "$1" )
+  local pidToCheck=$( grep -e "^pid=" "$_pidFile" |head -n 1 |sed -e 's/^pid=\([0-9][0-9]*\)$/\1/' )
   [ -z "$pidToCheck" ] && info "PID file '$_pidFile' empty." && return 1
 
   # Writes it.
@@ -409,6 +420,27 @@ function isRunningProcess() {
   return 1
 }
 
+# usage: checkAllPIDFiles
+# Checks all existing PID files, checks if corresponding process are still running,
+#  and deletes PID files if it is not the case.
+function checkAllProcessFromPIDFiles() {
+  info "Check any existing PID file (and clean if corresponding process is no more running)."
+  # For any existing PID file.
+  for pidFile in $( find "$h_pidDir" -type f ); do
+    processName=$( extractProcessNameFromFile "$pidFile" )
+
+    # Checks if there is still a process with this name and this PID,
+    #  if it is not the case, the PID file will be removed.
+    isRunningProcess "$pidFile" "$processName"
+  done
+}
+
+# usage: isHemeraComponentStarted
+# returns <true> if at least one component is started (regarding PID files).
+function isHemeraComponentStarted() {
+  [ $( find "$h_pidDir" -type f |wc -l ) -gt 0 ]
+}
+
 # usage: startProcess <pid file> <process name>
 function startProcess() {
   local _pidFile="$1"
@@ -416,7 +448,7 @@ function startProcess() {
   local _processName="$1"
 
   ## Writes the PID file.
-  writePIDFile "$_pidFile" || return 1
+  writePIDFile "$_pidFile" "$_processName" || return 1
 
   ## If noconsole is not already defined, messages must only be written in log file (no more on console).
   [ -z "$noconsole" ] && export noconsole=1
@@ -546,12 +578,6 @@ function daemonUsage() {
   echo -e "\nYou must either start, status or stop the $_name daemon."
 
   exit $ERROR_USAGE
-}
-
-# usage: isHemeraComponentStarted
-# returns <true> if at least one component is started (regarding PID files).
-function isHemeraComponentStarted() {
-  [ $( find "$h_pidDir" -type f |wc -l ) -gt 0 ]
 }
 
 #########################

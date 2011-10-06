@@ -248,7 +248,7 @@ function getLinesFromNToP() {
   local _source="$1" _lineBegin="$2" _lineEnd="$3"
   local _sourceLineCount=$( cat "$_source" |wc -l )
 
-  tail -n $( expr $_sourceLineCount - $_lineBegin + 1 ) "$_source" |head -n $( expr $_lineEnd - $_lineBegin + 1 )
+  tail -n $(($_sourceLineCount - $_lineBegin + 1)) "$_source" |head -n $(($_lineEnd - $_lineBegin + 1))
 }
 
 # usage: checkGNUWhich
@@ -784,7 +784,7 @@ function getUptime() {
   
   local _currentTime=$( date +'%s' )
   local _startTime=$( cat "$h_startTime" )
-  local _uptime=$( expr $_currentTime - $_startTime )
+  local _uptime=$(($_currentTime - $_startTime))
 
   printf "%02dd %02dh:%02dm.%02ds" $(($_uptime/86400)) $(($_uptime%86400/3600)) $(($_uptime%3600/60)) $(($_uptime%60))
 }

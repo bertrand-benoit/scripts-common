@@ -142,6 +142,9 @@ function isVersionGreater() {
   [ $( echo "$1" |grep -ce "^[0-9][0-9.]*$" ) -eq 1 ] || errorMessage "Unable to compare version because version '$1' does not fit the syntax (digits separated by dot)" $ERROR_ENVIRONMENT
   [ $( echo "$2" |grep -ce "^[0-9][0-9.]*$" ) -eq 1 ] || errorMessage "Unable to compare version because version '$2' does not fit the syntax (digits separated by dot)" $ERROR_ENVIRONMENT
 
+  # Checks if the version are equals (in which case the first one is NOT greater than the second).
+  [[ "$1" == "$2" ]] && return 1
+
   # Defines arrays with specified versions.
   local _v1Array=( ${1//./ } )
   local _v2Array=( ${2//./ } )
@@ -152,8 +155,8 @@ function isVersionGreater() {
     let index++
 
     # Ensures there is another element for each version.
-    [ -z "${_v1Array[$index]}" ] && v1End=1 || v1End=0
-    [ -z "${_v2Array[$index]}" ] && v2End=1 || v2End=0
+    [ -z "${_v1Array[$index]:-}" ] && v1End=1 || v1End=0
+    [ -z "${_v2Array[$index]:-}" ] && v2End=1 || v2End=0
 
     # Continues on next iteration if NONE is empty.
     [ $v1End -eq 0 ] && [ $v2End -eq 0 ] && continue

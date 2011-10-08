@@ -92,6 +92,10 @@ function dumpFuncCall() {
   #  case the exit status has been "manually" executed after error message shown.
   [ "${FUNCNAME[1]}" = "_doWriteMessage" ] && return 0
 
+  # Generates an input which will be processed (if Hemera is still running).
+  echo "${SAY_CMD_PATTERN_I18N[0]} $ERROR_OCCURED_I18N" > "$h_newInputDir/recognitionResult_errorDetected_$(date '+%N').txt"
+
+  # Prepares message begin.
   message="Status $_exitStatus at "
 
   # Disables call when it corresponds to the warning exit status of a previous call to this function.

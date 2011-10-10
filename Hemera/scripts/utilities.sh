@@ -498,7 +498,7 @@ function stopProcess() {
 }
 
 # usage: killChildProcesses <pid> [1]
-# 1: toggle defining is it the top hierarchy proces.
+# 1: toggle defining is it the top hierarchy process.
 function killChildProcesses() {
   local _pid=$1 _topProcess=${2:-0}
 
@@ -510,7 +510,7 @@ function killChildProcesses() {
   done
 
   # Kills the child process if not main one.
-  [ $_topProcess -eq 0 ] && kill -s HUP $_pid 
+  [ $_topProcess -eq 0 ] && kill -s HUP $_pid
 }
 
 # usage: setUpKillChildTrap <process name>

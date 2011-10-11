@@ -842,7 +842,7 @@ function getRecoCmdMode() {
 # usage: initializeMonitor
 function initializeMonitor() {
   rm -f "$h_monitor"
-  logMonitor "$H_MONITOR_BEGIN"
+  logMonitor "$H_MONITOR_BEGIN_I18N"
 }
 
 # usage: logMonitor <i18n message> [<input>]
@@ -859,7 +859,7 @@ function logMonitor() {
 
 # usage: finalizeStartTime
 function finalizeMonitor() {
-  logMonitor "$H_MONITOR_END"
+  logMonitor "$H_MONITOR_END_I18N"
 }
 
 #########################

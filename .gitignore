@@ -1,0 +1,53 @@
+
+# /Hemera/
+/Hemera/run
+/Hemera/nohup.out
+
+# /Hemera/config/
+/Hemera/config/hemera.conf
+
+# /Hemera/doc/
+/Hemera/doc/javadoc
+/Hemera/doc/HemeraBook
+
+# /Hemera/lib/
+/Hemera/lib/*.jar
+
+# /ThirdParty/_fromSource/
+/ThirdParty/_fromSource/*
+
+# /ThirdParty/speech/bin/
+/ThirdParty/speech/bin/*
+
+# /ThirdParty/speech/data/language/
+/ThirdParty/speech/data/language/*
+
+# /ThirdParty/speechRecognition/bin/
+/ThirdParty/speechRecognition/bin/*
+
+# /ThirdParty/speechRecognition/data/models/acoustic/
+/ThirdParty/speechRecognition/data/models/acoustic/*
+
+# /ThirdParty/speechRecognition/data/models/language/
+/ThirdParty/speechRecognition/data/models/language/*
+
+# /ThirdParty/speechRecognition/data/models/lexical/
+/ThirdParty/speechRecognition/data/models/lexical/*
+
+# /ThirdParty/webServices/
+/ThirdParty/webServices/bin
+
+# /WebModule/
+/WebModule/work
+/WebModule/build
+
+# /WebModule/WEB-INF/
+/WebModule/WEB-INF/classes
+
+# /tools/SpeechRecognition/build/
+/tools/SpeechRecognition/build/*
+
+# /tools/SpeechRecognition/data/
+/tools/SpeechRecognition/data/hemera_dic.utf8
+/tools/SpeechRecognition/data/hemera.DMP.utf8
+/tools/SpeechRecognition/data/*.utf8

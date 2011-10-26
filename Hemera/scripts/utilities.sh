@@ -93,7 +93,9 @@ function dumpFuncCall() {
   [ "${FUNCNAME[1]}" = "_doWriteMessage" ] && return 0
 
   # Generates an input which will be processed (if Hemera is still running).
-  echo "${SAY_CMD_PATTERN_I18N[0]} $ERROR_OCCURED_I18N" > "$h_newInputDir/recognitionResult_errorDetected_$(date '+%N').txt"
+  # Important: ensures i18N property is defined (in some rare case when user does not respect documentation;
+  #  or if he has not configured Hemera yet; system can fails before i18n file load).
+  [ ! -z "${SAY_CMD_PATTERN_I18N[0]:-}" ] && echo "${SAY_CMD_PATTERN_I18N[0]} $ERROR_OCCURED_I18N" > "$h_newInputDir/recognitionResult_errorDetected_$(date '+%N').txt"
 
   # Prepares message begin.
   message="Status $_exitStatus at "

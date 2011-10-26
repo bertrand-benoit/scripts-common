@@ -35,8 +35,8 @@
 # /ThirdParty/speechRecognition/data/models/lexical/
 /ThirdParty/speechRecognition/data/models/lexical/*
 
-# /ThirdParty/webServices/
-/ThirdParty/webServices/bin
+# /ThirdParty/webServices/bin/
+/ThirdParty/webServices/bin/*
 
 # /WebModule/
 /WebModule/work

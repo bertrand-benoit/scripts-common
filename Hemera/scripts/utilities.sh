@@ -763,7 +763,7 @@ function checkAndFormatPath() {
     # Uses "ls" to complete the path in case there is wildcard.
     if [ $( echo "$completePath" |grep -c "*" ) -eq 1 ]; then
       formattedWildcard=$( echo "$completePath" |sed -e 's/^/"/;s/$/"/;s/*/"*"/g;s/""$//;' )
-      completePath=$( ls -d $( eval echo $formattedWildcard ) )
+      completePath=$( ls -d $( eval echo $formattedWildcard ) 2>/dev/null ) || echo -e "\E[31mNOT FOUND\E[0m" |tee -a "$h_logFile"
     fi
 
     # Checks if it exists, if 'checkConfAndQuit' mode.

@@ -1,4 +1,9 @@
 
+# Common exclude.
+*.[oa]
+*~
+\#*#
+
 # /Hemera/
 /Hemera/build
 /Hemera/run

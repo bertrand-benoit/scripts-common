@@ -135,10 +135,11 @@ function getVersion() {
 function getDetailedVersion() {
   # General version is given by the $H_VERSION variable.
   # Before all, trying to get precise version in case of source code version.
-  revision=$( LANG=C svn info "$installDir" 2>&1|grep "^Revision:" |sed -e 's/Revision:[ \t][ \t]*/-r/' )
+  lastCommit=$( cd "$installDir"; LANG=C git log -1 --abbrev-commit --date=short 2>&1 |grep -wE "commit|Date" |sed -e 's/Date:. / of/' |tr -d '\n' )
+  [ ! -z "$lastCommit" ] && lastCommit=" ($lastCommit)"
 
   # Prints the general version and the potential precise version (will be empty if not defined).
-  echo "$H_VERSION$revision"
+  echo "$H_VERSION$lastCommit"
 }
 
 # usage: isVersionGreater <version 1> <version 2>

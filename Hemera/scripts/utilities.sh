@@ -87,6 +87,8 @@ function dumpFuncCall() {
   [ "$_exitStatus" -eq $ERROR_INPUT_PROCESS ] && return 0
   [ "$_exitStatus" -eq $ERROR_CHECK_BIN ] && return 0
   [ "$_exitStatus" -eq $ERROR_CHECK_CONFIG ] && return 0
+  [ "$_exitStatus" -eq $ERROR_CONFIG_VARIOUS ] && return 0
+  [ "$_exitStatus" -eq $ERROR_CONFIG_PATH ] && return 0
 
   # Ignores the call if the system is currently in _doWriteMessage, in which 
   #  case the exit status has been "manually" executed after error message shown.
@@ -634,9 +636,11 @@ function isSimplePath() {
 # Defaut <path to prepend> is $h_tpDir
 # <force prepend>: 0=disabled (default), 1=force prepend for "single path" (useful for data file)
 function getConfigPath() {
-  local _configKey="$1" _pathToPreprend="${2:-$h_tpDir}" _forcePrepend="${3:-0}"
+  local _configKey="$1" _pathToPreprend="${2:-${h_tpDir:-$H_DEFAULT_TP_DIR}}" _forcePrepend="${3:-0}"
 
-  value=$( getConfigValue "$_configKey" ) || return 1
+  # Tries to get the config value, and exits with error if it fails.
+  value=$( getConfigValue "$_configKey" )
+  [ $? -ne 0 ] && echo "$_configKey $value" && return $ERROR_CHECK_CONFIG
 
   # Checks if it is an absolute path.
   isAbsolutePath "$value" && echo "$value" && return 0
@@ -686,7 +690,7 @@ function checkDataFile() {
 #  the path is NOT absolute and NOT simple. Defaut <path to prepend> is $h_tpDir
 # If all is OK, it defined the h_lastConfig variable with the requested configuration element.
 function checkAndSetConfig() {
-  local _configKey="$1" _configType="$2" _pathToPreprend="${3:-$h_tpDir}"
+  local _configKey="$1" _configType="$2" _pathToPreprend="${3:-${h_tpDir:-$H_DEFAULT_TP_DIR}}"
   export h_lastConfig="NotFound" # reinit global variable.
 
   [ -z "$_configKey" ] && errorMessage "checkAndSetConfig function badly used (configuration key not specified)"

@@ -599,18 +599,30 @@ function daemonUsage() {
 #########################
 ## Functions - configuration
 
+# usage: checkConfigValue <configuration file> <config key>
+function checkConfigValue() {
+  [ $( grep -cre "^$2=" "$1" 2>/dev/null ) -gt 0 ]
+}
+
 # usage: getConfigValue <config key>
 function getConfigValue() {
-  # Checks if the key exists.
-  if [ $( grep -cre "^$1=" "$h_configurationFile" 2>/dev/null ) -eq 0 ]; then
-    # Prints error message (and exit) only if NOT in "check config and quit" mode.
-    [ $checkConfAndQuit -eq 0 ] && errorMessage "Configuration key '$1' NOT found" $ERROR_CONFIG_VARIOUS
-    echo -e "configuration key \E[31mNOT FOUND\E[0m" && return $ERROR_CONFIG_VARIOUS
+  local _configKey="$1"
+
+  # Checks in use configuration file.
+  configFileToRead="$h_configurationFile"
+  if ! checkConfigValue "$configFileToRead" "$_configKey"; then
+    # Checks in global configuration file.
+    configFileToRead="$h_globalConfFile"
+    if ! checkConfigValue "$configFileToRead" "$_configKey"; then
+      # Prints error message (and exit) only if NOT in "check config and quit" mode.
+      [ $checkConfAndQuit -eq 0 ] && errorMessage "Configuration key '$_configKey' NOT found in any of configuration files" $ERROR_CONFIG_VARIOUS
+      echo -e "configuration key \E[31mNOT FOUND\E[0m in any of configuration files" && return $ERROR_CONFIG_VARIOUS
+    fi
   fi
 
   # Gets the value (may be empty).
   # N.B.: in case there is several, takes only the last one (interesting when there is several definition in configuration file).
-  grep -re "^$1=" "$h_configurationFile" 2>/dev/null|sed -e 's/^[^=]*=//;s/"//g;' |tail -n 1
+  grep -re "^$_configKey=" "$configFileToRead" 2>/dev/null|sed -e 's/^[^=]*=//;s/"//g;' |tail -n 1
   return 0
 }
 

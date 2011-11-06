@@ -244,7 +244,7 @@ function warning() {
 # usage: errorMessage <message> [<exit code>]
 # Shows error message and exits.
 function errorMessage() {
-  _doWriteMessage $H_ERROR "$1" 1 ${2:-$ERROR_DEFAULT}
+  _doWriteMessage $H_ERROR "$1" 1 ${2:-$ERROR_DEFAULT} >&2
 }
 
 # usage: updateStructure <dir path>
@@ -599,8 +599,16 @@ function daemonUsage() {
 #########################
 ## Functions - configuration
 
+# usage: isRootUser
+function isRootUser() {
+  [[ "$( whoami )" == "root" ]]
+}
+
 # usage: checkConfigValue <configuration file> <config key>
 function checkConfigValue() {
+  # Ensures configuration file exists ('user' one does not exist for root user;
+  #  and 'global' configuration file does not exists for only-standard user installation.
+  [ ! -f "$1" ] && return 1
   [ $( grep -cre "^$2=" "$1" 2>/dev/null ) -gt 0 ]
 }
 
@@ -643,25 +651,35 @@ function isSimplePath() {
   [[ "$1" =~ "^[^\/]*$" ]]
 }
 
-# usage: getConfigPath <config key> [<path to prepend> <force prepend>]
+# usage: buildCompletePath <path> [<path to prepend> <force prepend>]
 # <path to prepend>: the path to prepend if the path is NOT absolute and NOT simple.
 # Defaut <path to prepend> is $h_tpDir
 # <force prepend>: 0=disabled (default), 1=force prepend for "single path" (useful for data file)
-function getConfigPath() {
-  local _configKey="$1" _pathToPreprend="${2:-${h_tpDir:-$H_DEFAULT_TP_DIR}}" _forcePrepend="${3:-0}"
-
-  # Tries to get the config value, and exits with error if it fails.
-  value=$( getConfigValue "$_configKey" )
-  [ $? -ne 0 ] && echo "$_configKey $value" && return $ERROR_CHECK_CONFIG
+function buildCompletePath() {
+  local _path="$1" _pathToPreprend="${2:-${h_tpDir:-$H_DEFAULT_TP_DIR}}" _forcePrepend="${3:-0}"
 
   # Checks if it is an absolute path.
-  isAbsolutePath "$value" && echo "$value" && return 0
+  isAbsolutePath "$_path" && echo "$_path" && return 0
 
   # Checks if it is a "simple" path.
-  isSimplePath "$value" && [ $_forcePrepend -eq 0 ] && echo "$value" && return 0
+  isSimplePath "$_path" && [ $_forcePrepend -eq 0 ] && echo "$_path" && return 0
 
   # Prefixes with Hemera install directory path.
-  echo "$_pathToPreprend/$value"
+  echo "$_pathToPreprend/$_path"
+}
+
+# usage: checkPath <path>
+function checkPath() {
+  # Informs only if not in 'checkConfAndQuit' mode.
+  [ $checkConfAndQuit -eq 0 ] && info "Checking path '$1' ... "
+
+  # Checks if the path exists.
+  [ -e "$1" ] && return 0
+
+  # It is not the case, if NOT in 'checkConfAndQuit' mode, it is a fatal error.
+  [ $checkConfAndQuit -eq 0 ] && errorMessage "Unable to find '$1'." $ERROR_CHECK_CONFIG
+  # Otherwise, simple returns an error code.
+  return $ERROR_CHECK_CONFIG
 }
 
 # usage: checkBin <binary name/path>
@@ -692,18 +710,20 @@ function checkDataFile() {
   return $ERROR_CHECK_CONFIG
 }
 
-# usage: checkAndGetConfig <config key> <config type> [<path to prepend>]
+# usage: checkAndGetConfig <config key> <config type> [<path to prepend>] [<toggle: must exist>]
 # <config key>: the full config key corresponding to configuration element in configuration file
 # <config type>: the type of config among
+#   $CONFIG_TYPE_PATH: path -> path existence will be checked
 #   $CONFIG_TYPE_OPTION: options -> nothing more will be done
 #   $CONFIG_TYPE_BIN: binary -> system will ensure binary path is available
 #   $CONFIG_TYPE_DATA: data -> data file path existence will be checked
 # <path to prepend>: (only for type $CONFIG_TYPE_BIN and $CONFIG_TYPE_DATA) the path to prepend if
 #  the path is NOT absolute and NOT simple. Defaut <path to prepend> is $h_tpDir
+# <toggle: must exist>: only for CONFIG_TYPE_PATH; 1 (default) if path must exist, 0 otherwise.
 # If all is OK, it defined the h_lastConfig variable with the requested configuration element.
 function checkAndSetConfig() {
-  local _configKey="$1" _configType="$2" _pathToPreprend="${3:-${h_tpDir:-$H_DEFAULT_TP_DIR}}"
-  export h_lastConfig="NotFound" # reinit global variable.
+  local _configKey="$1" _configType="$2" _pathToPreprend="${3:-${h_tpDir:-$H_DEFAULT_TP_DIR}}" _pathMustExist="${4:-1}"
+  export h_lastConfig="$CONFIG_NOT_FOUND" # reinit global variable.
 
   [ -z "$_configKey" ] && errorMessage "checkAndSetConfig function badly used (configuration key not specified)"
   [ -z "$_configType" ] && errorMessage "checkAndSetConfig function badly used (configuration type not specified)"
@@ -716,18 +736,10 @@ function checkAndSetConfig() {
   [ $checkConfAndQuit -eq 0 ] && info "$_message" || writeMessageSL "$_message"
 
   # Gets the value, according to the type of config.
-  if [ $_configType -eq $CONFIG_TYPE_OPTION ]; then
-    _value=$( getConfigValue "$_configKey" )
-    valueGetStatus=$?
-  else    
-    [ $_configType -eq $CONFIG_TYPE_DATA ] && forcePrepend=1 || forcePrepend=0
-    _value=$( getConfigPath "$_configKey" "$_pathToPreprend" $forcePrepend )
-    valueGetStatus=$?
-  fi
-
-  # Ensures value has been successfully got.
+  _value=$( getConfigValue "$_configKey" )
+  valueGetStatus=$?
   if [ $valueGetStatus -ne 0 ]; then
-    # Prints error messafe is any.
+    # Prints error message is any.
     [ ! -z "$_value" ] && echo -e "$_value" |tee -a "$h_logFile"
     # If NOT in 'checkConfAndQuit' mode, it is a fatal error, so exists.
     [ $checkConfAndQuit -eq 0 ] && exit $valueGetStatus
@@ -735,16 +747,22 @@ function checkAndSetConfig() {
     return $valueGetStatus
   fi
 
-  # Checks if it is a path.
-  if [ $_configType -eq $CONFIG_TYPE_OPTION ]; then
-    # No sense.
-    checkPathStatus=0
-  elif [ $_configType -eq $CONFIG_TYPE_BIN ]; then
-    checkBin "$_value"
-    checkPathStatus=$?
-  elif [ $_configType -eq $CONFIG_TYPE_DATA ]; then
-    checkDataFile "$_value"
-    checkPathStatus=$?
+  # Manages path if needed (it is the case for PATH, BIN and DATA).
+  checkPathStatus=0
+  if [ $_configType -ne $CONFIG_TYPE_OPTION ]; then
+    [ $_configType -eq $CONFIG_TYPE_DATA ] && forcePrepend=1 || forcePrepend=0
+    _value=$( buildCompletePath "$_value" "$_pathToPreprend" $forcePrepend )
+
+    if [ $_configType -eq $CONFIG_TYPE_PATH ] && [ $_pathMustExist -eq 1 ]; then
+      checkPath "$_value"
+      checkPathStatus=$?
+    elif [ $_configType -eq $CONFIG_TYPE_BIN ]; then
+      checkBin "$_value"
+      checkPathStatus=$?
+    elif [ $_configType -eq $CONFIG_TYPE_DATA ]; then
+      checkDataFile "$_value"
+      checkPathStatus=$?
+    fi
   fi
 
   # Ensures path check has been successfully done.
@@ -929,7 +947,7 @@ function manageJavaHome() {
     # Checks if it is defined in configuration file.
     checkAndSetConfig "environment.java.home" "$CONFIG_TYPE_OPTION"    
     declare -r javaHome="$h_lastConfig"
-    if [ -z "$javaHome" ]; then
+    if [ -z "$javaHome" ] || [[ "$javaHome" == "$CONFIG_NOT_FOUND" ]]; then
       # It is a fatal error but in 'checkConfAndQuit' mode.
       local _errorMessage="You must either configure JAVA_HOME environment variable or environment.java.home configuration element."
       [ $checkConfAndQuit -eq 0 ] && errorMessage "$_errorMessage" $ERROR_ENVIRONMENT
@@ -972,9 +990,9 @@ function manageAntHome() {
   # Checks if environment variable ANT_HOME is defined.
   if [ -z "$ANT_HOME" ]; then
     # Checks if it is defined in configuration file.
-    checkAndSetConfig "environment.ant.home" "$CONFIG_TYPE_OPTION"    
+    checkAndSetConfig "environment.ant.home" "$CONFIG_TYPE_OPTION"
     declare -r antHome="$h_lastConfig"
-    if [ -z "$antHome" ]; then
+    if [ -z "$antHome" ] || [[ "$antHome" == "$CONFIG_NOT_FOUND" ]]; then
       # It is a fatal error but in 'checkConfAndQuit' mode.
       local _errorMessage="You must either configure ANT_HOME environment variable or environment.ant.home configuration element."
       [ $checkConfAndQuit -eq 0 ] && errorMessage "$_errorMessage" $ERROR_ENVIRONMENT

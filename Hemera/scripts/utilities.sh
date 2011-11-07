@@ -658,6 +658,12 @@ function isSimplePath() {
 function buildCompletePath() {
   local _path="$1" _pathToPreprend="${2:-${h_tpDir:-$H_DEFAULT_TP_DIR}}" _forcePrepend="${3:-0}"
 
+  # Replaces potential '~' character.
+  if [[ "$_path" =~ "^~.*$" ]]; then
+    homeForSed=$( echo "${HOME/%\//}" |sed -e 's/\//\\\//g;' )
+    _path=$( echo "$_path" |sed -e "s/^~/$homeForSed/" )
+  fi
+
   # Checks if it is an absolute path.
   isAbsolutePath "$_path" && echo "$_path" && return 0
 

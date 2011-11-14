@@ -604,6 +604,15 @@ function isRootUser() {
   [[ "$( whoami )" == "root" ]]
 }
 
+# usage: pruneSlash <path>
+# Prunes ending slash, prunes useless slash in path, and returns purified path.
+function pruneSlash() {
+  # Unable to perform equivalent instruction only in GNU/Bash (because there is no way to 'say' 'end of line'):
+  #  - ${HOME/%\//} -> removes only ONE ending slash if any
+  #  - ${HOME/%\/\/*/} -> removes everything even if there is path pieces after last slash.
+  echo "$1" |sed -e 's/\/\/*/\//g;s/^\(.[^\/][^\/]*\)\/\/*$/\1/'
+}
+
 # usage: checkConfigValue <configuration file> <config key>
 function checkConfigValue() {
   # Ensures configuration file exists ('user' one does not exist for root user;
@@ -656,11 +665,11 @@ function isSimplePath() {
 # Defaut <path to prepend> is $h_tpDir
 # <force prepend>: 0=disabled (default), 1=force prepend for "single path" (useful for data file)
 function buildCompletePath() {
-  local _path="$1" _pathToPreprend="${2:-${h_tpDir:-$H_DEFAULT_TP_DIR}}" _forcePrepend="${3:-0}"
+  local _path="$( pruneSlash $1 )" _pathToPreprend="${2:-${h_tpDir:-$H_DEFAULT_TP_DIR}}" _forcePrepend="${3:-0}"
 
   # Replaces potential '~' character.
   if [[ "$_path" =~ "^~.*$" ]]; then
-    homeForSed=$( echo "${HOME/%\//}" |sed -e 's/\//\\\//g;' )
+    homeForSed=$( echo "$( pruneSlash $HOME )" |sed -e 's/\//\\\//g;' )
     _path=$( echo "$_path" |sed -e "s/^~/$homeForSed/" )
   fi
 
@@ -817,6 +826,13 @@ function checkAndFormatPath() {
     formattedPath=$formattedPath:$completePath
   done
   echo "$formattedPath"
+}
+
+# usage: checkForbiddenPath <path>
+# Ensures specified path is NOT forbidden.
+function checkForbiddenPath() {
+  local _path="$1"
+  [ $( echo "$H_FORBIDDEN_PATH" | grep -wc "$_path" ) -eq 0 ]
 }
 
 #########################

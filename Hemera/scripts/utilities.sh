@@ -665,11 +665,11 @@ function isSimplePath() {
 # Defaut <path to prepend> is $h_tpDir
 # <force prepend>: 0=disabled (default), 1=force prepend for "single path" (useful for data file)
 function buildCompletePath() {
-  local _path="$( pruneSlash $1 )" _pathToPreprend="${2:-${h_tpDir:-$H_DEFAULT_TP_DIR}}" _forcePrepend="${3:-0}"
+  local _path="$( pruneSlash "$1" )" _pathToPreprend="${2:-${h_tpDir:-$H_DEFAULT_TP_DIR}}" _forcePrepend="${3:-0}"
 
   # Replaces potential '~' character.
   if [[ "$_path" =~ "^~.*$" ]]; then
-    homeForSed=$( echo "$( pruneSlash $HOME )" |sed -e 's/\//\\\//g;' )
+    homeForSed=$( echo "$( pruneSlash "$HOME" )" |sed -e 's/\//\\\//g;' )
     _path=$( echo "$_path" |sed -e "s/^~/$homeForSed/" )
   fi
 

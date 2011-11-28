@@ -238,7 +238,7 @@ function info() {
 # Shows warning message.
 # Stays on the same line of "0" has been specified
 function warning() {
-  _doWriteMessage $H_WARNING "$1" ${2:-1}
+  _doWriteMessage $H_WARNING "$1" ${2:-1} >&2
 }
 
 # usage: errorMessage <message> [<exit code>]

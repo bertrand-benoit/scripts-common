@@ -362,7 +362,7 @@ function getOfflineDocPath() {
 # usage: getURLContents <url> <destination file>
 function getURLContents() {
   info "Getting contents of URL '$1'"
-  ! wget --user-agent="Mozilla/Firefox 3.6" -q "$1" -O "$2" && writeMessage "Error while getting contents of URL '$1'" && return 1
+  ! wget --user-agent="Mozilla/Firefox 3.6" -q "$1" -O "$2" && warning "Error while getting contents of URL '$1'" && return 1
   info "Got contents of URL '$1' with success"
   return 0
 }
@@ -930,7 +930,7 @@ function initializeCommandMap() {
   rm -f "$h_commandMap"
 
   # For each available commands.
-  for commandRaw in $( find "$h_coreDir/command" -maxdepth 1 -type f ! -name "*~" ! -name "*.txt" |sort |sed -e 's/[ \t]/£/g;' ); do
+  for commandRaw in $( find "$h_coreDir/command" -maxdepth 1 -type f ! -name "*~" ! -name "*.txt" ! -name "*.rc" |sort |sed -e 's/[ \t]/£/g;' ); do
     local _command=$( echo "$commandRaw" |sed -e 's/£/ /g;' )
     local _commandName=$( basename "$_command" )
     

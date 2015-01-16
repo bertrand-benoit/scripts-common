@@ -170,7 +170,7 @@ function isVersionGreater() {
     # Continues on next iteration if NONE is empty.
     [ $v1End -eq 0 ] && [ $v2End -eq 0 ] && continue
 
-    # If the two verions have been fully managed, they are equals (so the first is NOT greater).
+    # If the two versions have been fully managed, they are equals (so the first is NOT greater).
     [ $v1End -eq 1 ] && [ $v2End -eq 1 ] && return 1
 
     # if the first version has not been fully managed, it is greater

@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Hemera - Intelligent System (https://sourceforge.net/projects/hemerais)
-# Copyright (C) 2010 Bertrand Benoit <projettwk@users.sourceforge.net>
+# Copyright (C) 2010-2015 Bertrand Benoit <projettwk@users.sourceforge.net>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by

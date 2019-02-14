@@ -21,6 +21,58 @@ trap '_status=$?; dumpFuncCall $_status' ERR
 trap '_status=$?; [ $_status -ne 0 ] && dumpFuncCall $_status' EXIT
 
 #########################
+## Constants
+declare -r DEFAULT_LOG_FILE="/tmp/$( date +'%Y-%m-%d-%H-%M-%S' )-$( basename $0 ).log"
+declare -r DEFAULT_ROOT_DIR="${HOME:-/home/$( whoami )}"
+
+# Log Levels.
+declare -r LOG_LEVEL_INFO=1
+declare -r LOG_LEVEL_MESSAGE=2
+declare -r LOG_LEVEL_WARNING=3
+declare -r LOG_LEVEL_ERROR=4
+
+# Configuration element types.
+declare -r CONFIG_NOT_FOUND="CONFIG NOT FOUND"
+declare -r CONFIG_TYPE_PATH=1
+declare -r CONFIG_TYPE_OPTION=2
+declare -r CONFIG_TYPE_BIN=3
+declare -r CONFIG_TYPE_DATA=4
+
+## Error code
+# Default error message code.
+declare -r ERROR_DEFAULT=101
+
+# Error code after showing usage.
+declare -r ERROR_USAGE=102
+
+# Command line syntax not respected.
+declare -r ERROR_BAD_CLI=103
+
+# Bad/incomplete environment, like:
+#  - missing Java or Ant
+#  - bad user
+#  - permission issue (e.g. while updating structure)
+declare -r ERROR_ENVIRONMENT=104
+
+# Invalid configuration, or path definition.
+declare -r ERROR_CONFIG_VARIOUS=105
+declare -r ERROR_CONFIG_PATH=106
+
+# Binary or data configured file not found.
+declare -r ERROR_CHECK_BIN=107
+declare -r ERROR_CHECK_CONFIG=108
+
+# Bad/unsupported mode.
+declare -r ERROR_MODE=109
+
+# External tool fault (e.g. curl, wget ...).
+declare -r ERROR_EXTERNAL_TOOL=110
+
+# Timeout (in seconds) when stopping process, before killing it.
+declare -r PROCESS_STOP_TIMEOUT=10
+declare -r DAEMON_SPECIAL_RUN_ACTION="-R"
+
+#########################
 ## Global variables
 VERBOSE=${VERBOSE:-0}
 # special toggle defining if system must quit after configuration check (activate when using -X option of scripts)
@@ -30,7 +82,7 @@ CATEGORY=${CATEGORY:-general}
 # By default, system logs messages on console.
 LOG_CONSOLE_OFF=${LOG_CONSOLE_OFF:-0}
 # Initializes temporary log file with temporary value.
-LOG_FILE=${LOG_FILE:-$H_DEFAULT_LOG}
+LOG_FILE=${LOG_FILE:-$DEFAULT_LOG_FILE}
 # By default, each component has a specific log file
 #  (LOG_FILE_APPEND_MODE allows to define if caller script can continue to log in same file).
 LOG_FILE_APPEND_MODE=${LOG_FILE_APPEND_MODE:-0}
@@ -67,11 +119,6 @@ function dumpFuncCall() {
   # Ignores the call if the system is currently in _doWriteMessage, in which
   #  case the exit status has been "manually" executed after error message shown.
   [ "${FUNCNAME[1]}" = "_doWriteMessage" ] && return 0
-
-  # Generates an input which will be processed (if Hemera is still running).
-  # Important: ensures i18N property is defined (in some rare case when user does not respect documentation;
-  #  or if he has not configured Hemera yet; system can fails before i18n file load).
-  [ ! -z "${SAY_CMD_PATTERN_I18N[0]:-}" ] && echo "${SAY_CMD_PATTERN_I18N[0]} $ERROR_OCCURED_I18N" > "$h_newInputDir/recognitionResult_errorDetected_$(date '+%N').txt"
 
   # Prepares message begin.
   message="Status $_exitStatus at "
@@ -153,7 +200,7 @@ function isVersionGreater() {
 }
 
 # usage: _doWriteMessage <level> <message> <newline> <exit code>
-# <level>: H_INFO|H_MESSAGE|H_WARNING|H_ERROR
+# <level>: LOG_LEVEL_INFO|LOG_LEVEL_MESSAGE|LOG_LEVEL_WARNING|LOG_LEVEL_ERROR
 # <message>: the message to show
 # <newline>: 0 to stay on same line, 1 to break line
 # <exit code>: the exit code (usually for ERROR message), -1 for NO exit.
@@ -161,15 +208,15 @@ function _doWriteMessage() {
   local _level="$1" _message="$2" _newLine="${3:-1}" _exitCode="${4:--1}"
 
   # Does nothing if INFO message and NOT verbose.
-  [ $VERBOSE -eq 0 ] && [ "$_level" = "$H_INFO" ] && return 0
+  [ $VERBOSE -eq 0 ] && [ "$_level" = "$LOG_LEVEL_INFO" ] && return 0
 
   local _messageTime=$(date +"%d/%m/%y %H:%M.%S")
 
   # Manages level.
   _messagePrefix=""
-  [ "$_level" = "$H_INFO" ] && _messagePrefix="INFO: "
-  [ "$_level" = "$H_WARNING" ] && _messagePrefix="\E[31m\E[4mWARNING\E[0m: "
-  [ "$_level" = "$H_ERROR" ] && _messagePrefix="\E[31m\E[4mERROR\E[0m: "
+  [ "$_level" = "$LOG_LEVEL_INFO" ] && _messagePrefix="INFO: "
+  [ "$_level" = "$LOG_LEVEL_WARNING" ] && _messagePrefix="\E[31m\E[4mWARNING\E[0m: "
+  [ "$_level" = "$LOG_LEVEL_ERROR" ] && _messagePrefix="\E[31m\E[4mERROR\E[0m: "
 
   [ $_newLine -eq 0 ] && printMessageEnd="" || printMessageEnd="\n"
 
@@ -188,33 +235,33 @@ function _doWriteMessage() {
 # usage: writeMessage <message>
 # Shows the message, and moves to next line.
 function writeMessage() {
-  _doWriteMessage $H_MESSAGE "$1" "${2:-1}" -1
+  _doWriteMessage $LOG_LEVEL_MESSAGE "$1" "${2:-1}" -1
 }
 
 # usage: writeMessageSL <message>
 # Shows the message, and stays to same line.
 function writeMessageSL() {
-  _doWriteMessage $H_MESSAGE "$1" 0 -1
+  _doWriteMessage $LOG_LEVEL_MESSAGE "$1" 0 -1
 }
 
 # usage: info <message> [<0 or 1>]
 # Shows message only if $VERBOSE is ON.
 # Stays on the same line of "0" has been specified
 function info() {
-  _doWriteMessage $H_INFO "$1" ${2:-1}
+  _doWriteMessage $LOG_LEVEL_INFO "$1" ${2:-1}
 }
 
 # usage: warning <message> [<0 or 1>]
 # Shows warning message.
 # Stays on the same line of "0" has been specified
 function warning() {
-  _doWriteMessage $H_WARNING "$1" ${2:-1} >&2
+  _doWriteMessage $LOG_LEVEL_WARNING "$1" ${2:-1} >&2
 }
 
 # usage: errorMessage <message> [<exit code>]
 # Shows error message and exits.
 function errorMessage() {
-  _doWriteMessage $H_ERROR "$1" 1 ${2:-$ERROR_DEFAULT} >&2
+  _doWriteMessage $LOG_LEVEL_ERROR "$1" 1 ${2:-$ERROR_DEFAULT} >&2
 }
 
 # usage: updateStructure <dir path>
@@ -297,7 +344,7 @@ function checkOSLocale() {
   # Checks LANG is defined with UTF-8.
   if [ $( echo $LANG |grep -ci "[.]utf[-]*8" ) -eq 0 ] ; then
       # It is a fatal error but in 'MODE_CHECK_CONFIG_AND_QUIT' mode.
-      warning "You must update your LANG environment variable to use the UTF-8 charmaps ('${LANG:-NONE}' detected). Until then Hemera will attempt using en_US.UTF-8."
+      warning "You must update your LANG environment variable to use the UTF-8 charmaps ('${LANG:-NONE}' detected). Until then system will attempt using en_US.UTF-8."
 
       export LANG="en_US.UTF-8"
   fi
@@ -305,7 +352,7 @@ function checkOSLocale() {
   # Ensures defined LANG is avaulable on the OS.
   if [ $( locale -a 2>/dev/null |grep -ci $LANG ) -eq 0 ] && [ $( locale -a 2>/dev/null |grep -c $( echo $LANG |sed -e 's/UTF[-]*8/utf8/' ) ) -eq 0 ]; then
     # It is a fatal error but in 'MODE_CHECK_CONFIG_AND_QUIT' mode.
-    warning "Although the current OS locale '$LANG' defines to use the UTF-8 charmaps, it is not available (checked with 'locale -a'). You must install it or update your LANG environment variable. Until then Hemera will attempt using en_US.UTF-8."
+    warning "Although the current OS locale '$LANG' defines to use the UTF-8 charmaps, it is not available (checked with 'locale -a'). You must install it or update your LANG environment variable. Until then system will attempt using en_US.UTF-8."
 
     export LANG="en_US.UTF-8"
   fi
@@ -403,12 +450,6 @@ function checkAllProcessFromPIDFiles() {
     #  if it is not the case, the PID file will be removed.
     isRunningProcess "$pidFile" "$processName"
   done
-}
-
-# usage: isHemeraComponentStarted
-# returns <true> if at least one component is started (regarding PID files).
-function isHemeraComponentStarted() {
-  [ $( find "$h_pidDir" -type f |wc -l ) -gt 0 ]
 }
 
 # usage: startProcess <pid file> <process name>
@@ -619,7 +660,7 @@ function isSimplePath() {
 # Defaut <path to prepend> is $h_tpDir
 # <force prepend>: 0=disabled (default), 1=force prepend for "single path" (useful for data file)
 function buildCompletePath() {
-  local _path="$( pruneSlash "$1" )" _pathToPreprend="${2:-${h_tpDir:-$H_DEFAULT_TP_DIR}}" _forcePrepend="${3:-0}"
+  local _path="$( pruneSlash "$1" )" _pathToPreprend="${2:-${h_tpDir:-$DEFAULT_ROOT_DIR}}" _forcePrepend="${3:-0}"
 
   # Replaces potential '~' character.
   if [[ "$_path" =~ "^~.*$" ]]; then
@@ -633,7 +674,7 @@ function buildCompletePath() {
   # Checks if it is a "simple" path.
   isSimplePath "$_path" && [ $_forcePrepend -eq 0 ] && echo "$_path" && return 0
 
-  # Prefixes with Hemera install directory path.
+  # Prefixes with install directory path.
   echo "$_pathToPreprend/$_path"
 }
 
@@ -691,7 +732,7 @@ function checkDataFile() {
 # <toggle: must exist>: only for CONFIG_TYPE_PATH; 1 (default) if path must exist, 0 otherwise.
 # If all is OK, it defined the h_lastConfig variable with the requested configuration element.
 function checkAndSetConfig() {
-  local _configKey="$1" _configType="$2" _pathToPreprend="${3:-${h_tpDir:-$H_DEFAULT_TP_DIR}}" _pathMustExist="${4:-1}"
+  local _configKey="$1" _configType="$2" _pathToPreprend="${3:-${h_tpDir:-$DEFAULT_ROOT_DIR}}" _pathMustExist="${4:-1}"
   export h_lastConfig="$CONFIG_NOT_FOUND" # reinit global variable.
 
   [ -z "$_configKey" ] && errorMessage "checkAndSetConfig function badly used (configuration key not specified)"
@@ -782,13 +823,6 @@ function checkAndFormatPath() {
   echo "$formattedPath"
 }
 
-# usage: checkForbiddenPath <path>
-# Ensures specified path is NOT forbidden.
-function checkForbiddenPath() {
-  local _path="$1"
-  [ $( echo "$H_FORBIDDEN_PATH" | grep -wc "$_path" ) -eq 0 ]
-}
-
 #########################
 ## Functions - uptime
 
@@ -812,106 +846,6 @@ function getUptime() {
 
   printf "%02dd %02dh:%02dm.%02ds" $(($_uptime/86400)) $(($_uptime%86400/3600)) $(($_uptime%3600/60)) $(($_uptime%60))
 }
-
-
-#########################
-## Functions - Recognized Commands mode
-# usage: initRecoCmdMode
-# Creates hemera mode file with normal mode.
-function initRecoCmdMode() {
-  updateRecoCmdMode "$H_RECO_CMD_MODE_NORMAL_I18N"
-}
-
-# usage: updateRecoCmdMode <i18n mode>
-function updateRecoCmdMode() {
-  local _newModei18N="$1"
-
-  # Defines the internal mode corresponding to this i18n mode (usually provided by speech recognition).
-  local _modeIndex=0
-  for availableMode in ${H_SUPPORTED_RECO_CMD_MODES_I18N[*]}; do
-    # Checks if this is the specified mode.
-    if [ "$_newModei18N" = "$availableMode" ]; then
-      # It is the case, writes the corresponding internal mode in the mode file.
-      echo "${H_SUPPORTED_RECO_CMD_MODES[$_modeIndex]}" > "$h_recoCmdModeFile"
-      return 0
-    fi
-
-    let _modeIndex++
-  done
-
-  # No corresponding internal mode has been found, it is fatal.
-  # It should NEVER happen because mode must have been checked before this call.
-  errorMessage "Unable to find corresponding internal mode of I18N mode '$_newModei18N'" $ERROR_ENVIRONMENT
-}
-
-# usage: getRecoCmdMode
-# Returns the recognized commands mode.
-function getRecoCmdMode() {
-  # Ensures the mode file exists.
-  [ ! -f "$h_recoCmdModeFile" ] && errorMessage "Unable to find Hemera recognized command mode file '$h_recoCmdModeFile'" $ERROR_ENVIRONMENT
-  cat "$h_recoCmdModeFile"
-}
-
-# usage: initializeMonitor
-function initializeMonitor() {
-  rm -f "$h_monitor"
-  logMonitor "$H_MONITOR_BEGIN_I18N"
-}
-
-# usage: logMonitor <i18n message> [<input>]
-# <i18n message> must correspond of a i18n element defined in corresponding i18n file.
-# <input> in case of plugin activity message (usually the case)
-function logMonitor() {
-  local _message="$1" _input="${2:-}"
-
-  # TODO: adapt date to language
-  local completeMessage="$(date +"%d/%m/%y %H:%M.%S") $_message"
-  [ ! -z "$_input" ] && completeMessage="$completeMessage ($_input)"
-  echo "$completeMessage" >> "$h_monitor"
-}
-
-# usage: finalizeStartTime
-function finalizeMonitor() {
-  logMonitor "$H_MONITOR_END_I18N"
-}
-
-#########################
-## Functions - commands
-
-# usage: initializeCommandMap
-function initializeCommandMap() {
-  # Removes the potential existing list file.
-  rm -f "$h_commandMap"
-
-  # For each available commands.
-  for commandRaw in $( find "$h_coreDir/command" -maxdepth 1 -type f ! -name "*~" ! -name "*.txt" ! -name "*.rc" |sort |sed -e 's/[ \t]/£/g;' ); do
-    local _command=$( echo "$commandRaw" |sed -e 's/£/ /g;' )
-    local _commandName=$( basename "$_command" )
-
-    # Extracts keyword.
-    local _keyword=$( head -n 30 "$_command" |grep "^#.Keyword:" |sed -e 's/^#.Keyword:[ \t]*//g;s/[ \t]*$//g;' )
-    [ -z "$_keyword" ] && warning "The command '$_commandName' doesn't seem to respect format. It will be ignored." && continue
-
-    # Updates command map file.
-    for localizedName in $( grep -re "$_keyword"_"PATTERN_I18N" "$h_i18nFile" |sed -e 's/^[^(]*(//g;s/).*$//g;s/"//g;' ); do
-      echo "$localizedName=$_command" >> "$h_commandMap"
-    done
-  done
-}
-
-# usage: getMappedCommand <speech recognition result command>
-# <speech recognition result command>: 1 word corresponding to speeched command
-# returns the mapped command script if any, empty string otherwise.
-function getMappedCommand() {
-  local _commandName="$1"
-
-  # Ensures map file exists.
-  [ ! -f "$h_commandMap" ] && warning "The command map file has not been initialized." && return 1
-
-  # Attempts to get mapped command script.
-  echo $( grep "^$_commandName=" "$h_commandMap" |sed -e 's/^[^=]*=//g;' )
-}
-
 
 #########################
 ## Functions - source code management

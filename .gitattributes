@@ -1,0 +1,22 @@
+## Archive creation.
+# Ignores Eclipse project files, source files, tests, tools, distrib generator.
+.git*           export-ignore
+.project        export-ignore
+.classpath      export-ignore
+ChangeLog       export-ignore
+/Tests          export-ignore
+/tools          export-ignore
+/Samples        export-ignore
+/distrib        export-ignore
+
+# Idem for old version (some directories have been renamed).
+/tests          export-ignore
+/samples        export-ignore
+TODO            export-ignore
+
+# Until next version, ignores WebModule.
+/WebModule      export-ignore
+
+
+## Diff tools.
+*.wav diff=wav

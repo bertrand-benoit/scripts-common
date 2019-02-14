@@ -1,9 +1,27 @@
 #!/bin/bash
 #
-# Common utilities for all Bsquare's scripts, available on GitHub.
-#
+# Author: Bertrand Benoit <mailto:contact@bertrand-benoit.net>
 # Version: 2.0
-# Description: provides lots of utilities functions.
+#
+# Description: Common utilities for all Bsquare's scripts (available on GitHub), and for your own scripts.
+# Repositories: https://github.com/bertrand-benoit
+#
+# Optional variables you can define before sourcing this file:
+#  ROOT_DIR           <path>  root directory to consider when performing various check
+#  TMP_DIR            <path>  temporary directory where various dump files will be created
+#  PID_DIR            <path>  directory where PID files will be created to manage daemon feature
+#  CONFIG_FILE        <path>  path of configuration file to consider
+#  GLOBAL_CONFIG_FILE <path>  path of GLOBAL configuration file to consider (configuration element will be checked in this one, if NOT found in the configuration file)
+#
+#  VERBOSE                      0|1  activate info/debug message
+#  CATEGORY                 <string> the category which prepends all messages
+#  LOG_CONSOLE_OFF              0|1  disable message output on console
+#  LOG_FILE                   <path> path of the log file
+#  LOG_FILE_APPEND_MODE         0|1  activate append mode, instead of override one
+#  MODE_CHECK_CONFIG_AND_QUIT   0|1  check ALL configuration and then quit (useful to check all the configuration you want, +/- like a dry run)
+#
+# N.B.: when using checkAndSetConfig function (see usage), you can get back the corresponding configuration in LAST_READ_CONFIG variable
+#        if it has NOT been found, it is set to $CONFIG_NOT_FOUND.
 
 #########################
 ## Global configuration
@@ -22,8 +40,16 @@ trap '_status=$?; [ $_status -ne 0 ] && dumpFuncCall $_status' EXIT
 
 #########################
 ## Constants
-declare -r DEFAULT_LOG_FILE="/tmp/$( date +'%Y-%m-%d-%H-%M-%S' )-$( basename $0 ).log"
 declare -r DEFAULT_ROOT_DIR="${HOME:-/home/$( whoami )}"
+declare -r DEFAULT_TMP_DIR="${TMP_DIR:-/tmp/$( date +'%Y-%m-%d-%H-%M-%S' )-$( basename $0 )}"
+declare -r DEFAULT_LOG_FILE="$DEFAULT_TMP_DIR/logFile.log"
+declare -r DEFAULT_TIME_FILE="$DEFAULT_TMP_DIR/timeFile"
+
+declare -r DEFAULT_CONFIG_FILE="$DEFAULT_ROOT_DIR/.config/$( basename $0 ).conf"
+declare -r DEFAULT_GLOBAL_CONFIG_FILE="/etc/$( basename $0 ).conf"
+declare -r DEFAULT_PID_DIR="$DEFAULT_TMP_DIR/_pids"
+
+mkdir -p "$DEFAULT_PID_DIR"
 
 # Log Levels.
 declare -r LOG_LEVEL_INFO=1
@@ -107,10 +133,9 @@ function dumpFuncCall() {
   #  ERROR_INPUT_PROCESS: an error message will be said
   #  ERROR_CHECK_BIN an error message will be shown
   #  ERROR_CHECK_CONFIG an error message will be shown
-  [ "$_exitStatus" -eq 1 ] && return 0
+  #[ "$_exitStatus" -eq 1 ] && return 0
   [ "$_exitStatus" -eq $ERROR_USAGE ] && return 0
   [ "$_exitStatus" -eq $ERROR_BAD_CLI ] && return 0
-  [ "$_exitStatus" -eq $ERROR_INPUT_PROCESS ] && return 0
   [ "$_exitStatus" -eq $ERROR_CHECK_BIN ] && return 0
   [ "$_exitStatus" -eq $ERROR_CHECK_CONFIG ] && return 0
   [ "$_exitStatus" -eq $ERROR_CONFIG_VARIOUS ] && return 0
@@ -308,18 +333,6 @@ function isEmptyDirectory()
   [ $( ls -1 "$1" |wc -l ) -eq 0 ]
 }
 
-# usage: waitUntilAllInputManaged [<timeout>]
-# Default timeout is 2 minutes.
-function waitUntilAllInputManaged() {
-  local _remainingTime=${1:-120}
-  info "Waiting until all input are managed (timeout: $_remainingTime seconds)"
-  while ! isEmptyDirectory "$h_newInputDir" || ! isEmptyDirectory "$h_curInputDir"; do
-    [ $_remainingTime -eq 0 ] && break
-    sleep 1
-    let _remainingTime--
-  done
-}
-
 # usage: matchesOneOf <patterns> <element to check>
 function matchesOneOf() {
   local _patterns="$1" _element="$2"
@@ -443,7 +456,7 @@ function isRunningProcess() {
 function checkAllProcessFromPIDFiles() {
   info "Check any existing PID file (and clean if corresponding process is no more running)."
   # For any existing PID file.
-  for pidFile in $( find "$h_pidDir" -type f ); do
+  for pidFile in $( find "${PID_DIR:-$DEFAULT_PID_DIR}" -type f ); do
     processName=$( extractProcessNameFromFile "$pidFile" )
 
     # Checks if there is still a process with this name and this PID,
@@ -621,10 +634,10 @@ function getConfigValue() {
   local _configKey="$1"
 
   # Checks in use configuration file.
-  configFileToRead="$h_configurationFile"
+  configFileToRead="${CONFIG_FILE:-$DEFAULT_CONFIG_FILE}"
   if ! checkConfigValue "$configFileToRead" "$_configKey"; then
     # Checks in global configuration file.
-    configFileToRead="$h_globalConfFile"
+    configFileToRead="${GLOBAL_CONFIG_FILE:-$DEFAULT_GLOBAL_CONFIG_FILE}"
     if ! checkConfigValue "$configFileToRead" "$_configKey"; then
       # Prints error message (and exit) only if NOT in "check config and quit" mode.
       [ $MODE_CHECK_CONFIG_AND_QUIT -eq 0 ] && errorMessage "Configuration key '$_configKey' NOT found in any of configuration files" $ERROR_CONFIG_VARIOUS
@@ -657,10 +670,10 @@ function isSimplePath() {
 
 # usage: buildCompletePath <path> [<path to prepend> <force prepend>]
 # <path to prepend>: the path to prepend if the path is NOT absolute and NOT simple.
-# Defaut <path to prepend> is $h_tpDir
+# Defaut <path to prepend> is $ROOT_DIR
 # <force prepend>: 0=disabled (default), 1=force prepend for "single path" (useful for data file)
 function buildCompletePath() {
-  local _path="$( pruneSlash "$1" )" _pathToPreprend="${2:-${h_tpDir:-$DEFAULT_ROOT_DIR}}" _forcePrepend="${3:-0}"
+  local _path="$( pruneSlash "$1" )" _pathToPreprend="${2:-${ROOT_DIR:-$DEFAULT_ROOT_DIR}}" _forcePrepend="${3:-0}"
 
   # Replaces potential '~' character.
   if [[ "$_path" =~ "^~.*$" ]]; then
@@ -728,12 +741,12 @@ function checkDataFile() {
 #   $CONFIG_TYPE_BIN: binary -> system will ensure binary path is available
 #   $CONFIG_TYPE_DATA: data -> data file path existence will be checked
 # <path to prepend>: (only for type $CONFIG_TYPE_BIN and $CONFIG_TYPE_DATA) the path to prepend if
-#  the path is NOT absolute and NOT simple. Defaut <path to prepend> is $h_tpDir
+#  the path is NOT absolute and NOT simple. Defaut <path to prepend> is $ROOT_DIR
 # <toggle: must exist>: only for CONFIG_TYPE_PATH; 1 (default) if path must exist, 0 otherwise.
-# If all is OK, it defined the h_lastConfig variable with the requested configuration element.
+# If all is OK, it defined the LAST_READ_CONFIG variable with the requested configuration element.
 function checkAndSetConfig() {
-  local _configKey="$1" _configType="$2" _pathToPreprend="${3:-${h_tpDir:-$DEFAULT_ROOT_DIR}}" _pathMustExist="${4:-1}"
-  export h_lastConfig="$CONFIG_NOT_FOUND" # reinit global variable.
+  local _configKey="$1" _configType="$2" _pathToPreprend="${3:-${ROOT_DIR:-$DEFAULT_ROOT_DIR}}" _pathMustExist="${4:-1}"
+  export LAST_READ_CONFIG="$CONFIG_NOT_FOUND" # reinit global variable.
 
   [ -z "$_configKey" ] && errorMessage "checkAndSetConfig function badly used (configuration key not specified)"
   [ -z "$_configType" ] && errorMessage "checkAndSetConfig function badly used (configuration type not specified)"
@@ -788,7 +801,7 @@ function checkAndSetConfig() {
   [ $MODE_CHECK_CONFIG_AND_QUIT -eq 1 ] && echo "OK" |tee -a "$LOG_FILE"
 
   # Sets the global variable
-  export h_lastConfig="$_value"
+  export LAST_READ_CONFIG="$_value"
   return 0
 }
 
@@ -803,7 +816,7 @@ function checkAndFormatPath() {
 
     # Defines the completes path, according to absolute/relative path.
     completePath="$pathToCheck"
-    ! isAbsolutePath "$pathToCheck" && completePath="$h_tpDir/$pathToCheck"
+    ! isAbsolutePath "$pathToCheck" && completePath="${ROOT_DIR:-$DEFAULT_ROOT_DIR}/$pathToCheck"
 
     # Uses "ls" to complete the path in case there is wildcard.
     if [ $( echo "$completePath" |grep -c "*" ) -eq 1 ]; then
@@ -828,20 +841,20 @@ function checkAndFormatPath() {
 
 # usage: initializeUptime
 function initializeStartTime() {
-  date +'%s' > "$h_startTime"
+  date +'%s' > "${TIME_FILE:-$DEFAULT_TIME_FILE}"
 }
 
 # usage: finalizeStartTime
 function finalizeStartTime() {
-  rm -f "$h_startTime"
+  rm -f "${TIME_FILE:-$DEFAULT_TIME_FILE}"
 }
 
 # usage: getUptime
 function getUptime() {
-  [ ! -f "$h_startTime" ] && echo "not started" && exit 0
+  [ ! -f "${TIME_FILE:-$DEFAULT_TIME_FILE}" ] && echo "not started" && exit 0
 
   local _currentTime=$( date +'%s' )
-  local _startTime=$( cat "$h_startTime" )
+  local _startTime=$( cat "${TIME_FILE:-$DEFAULT_TIME_FILE}" )
   local _uptime=$(($_currentTime - $_startTime))
 
   printf "%02dd %02dh:%02dm.%02ds" $(($_uptime/86400)) $(($_uptime%86400/3600)) $(($_uptime%3600/60)) $(($_uptime%60))
@@ -856,7 +869,7 @@ function manageJavaHome() {
   if [ -z "$JAVA_HOME" ]; then
     # Checks if it is defined in configuration file.
     checkAndSetConfig "environment.java.home" "$CONFIG_TYPE_OPTION"
-    declare -r javaHome="$h_lastConfig"
+    declare -r javaHome="$LAST_READ_CONFIG"
     if [ -z "$javaHome" ] || [[ "$javaHome" == "$CONFIG_NOT_FOUND" ]]; then
       # It is a fatal error but in 'MODE_CHECK_CONFIG_AND_QUIT' mode.
       local _errorMessage="You must either configure JAVA_HOME environment variable or environment.java.home configuration element."
@@ -901,7 +914,7 @@ function manageAntHome() {
   if [ -z "$ANT_HOME" ]; then
     # Checks if it is defined in configuration file.
     checkAndSetConfig "environment.ant.home" "$CONFIG_TYPE_OPTION"
-    declare -r antHome="$h_lastConfig"
+    declare -r antHome="$LAST_READ_CONFIG"
     if [ -z "$antHome" ] || [[ "$antHome" == "$CONFIG_NOT_FOUND" ]]; then
       # It is a fatal error but in 'MODE_CHECK_CONFIG_AND_QUIT' mode.
       local _errorMessage="You must either configure ANT_HOME environment variable or environment.ant.home configuration element."

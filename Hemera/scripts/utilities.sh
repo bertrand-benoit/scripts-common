@@ -22,18 +22,18 @@ trap '_status=$?; [ $_status -ne 0 ] && dumpFuncCall $_status' EXIT
 
 #########################
 ## Global variables
-verbose=${verbose:-0}
+VERBOSE=${VERBOSE:-0}
 # special toggle defining if system must quit after configuration check (activate when using -X option of scripts)
-checkConfAndQuit=${checkConfAndQuit:-0}
-# Defines default category if not already defined.
-category=${category:-general}
+MODE_CHECK_CONFIG_AND_QUIT=${MODE_CHECK_CONFIG_AND_QUIT:-0}
+# Defines default CATEGORY if not already defined.
+CATEGORY=${CATEGORY:-general}
 # By default, system logs messages on console.
-noconsole=${noconsole:-0}
-# By default, each component has a specific log file
-#  (continueLogFile allows to define if caller script can continue to log in same file).
-continueLogFile=${continueLogFile:-0}
+LOG_CONSOLE_OFF=${LOG_CONSOLE_OFF:-0}
 # Initializes temporary log file with temporary value.
-logFile=${logFile:-$H_DEFAULT_LOG}
+LOG_FILE=${LOG_FILE:-$H_DEFAULT_LOG}
+# By default, each component has a specific log file
+#  (LOG_FILE_APPEND_MODE allows to define if caller script can continue to log in same file).
+LOG_FILE_APPEND_MODE=${LOG_FILE_APPEND_MODE:-0}
 
 # Initializes environment variables if not already the case.
 ANT_HOME=${ANT_HOME:-}
@@ -161,7 +161,7 @@ function _doWriteMessage() {
   local _level="$1" _message="$2" _newLine="${3:-1}" _exitCode="${4:--1}"
 
   # Does nothing if INFO message and NOT verbose.
-  [ $verbose -eq 0 ] && [ "$_level" = "$H_INFO" ] && return 0
+  [ $VERBOSE -eq 0 ] && [ "$_level" = "$H_INFO" ] && return 0
 
   local _messageTime=$(date +"%d/%m/%y %H:%M.%S")
 
@@ -174,10 +174,10 @@ function _doWriteMessage() {
   [ $_newLine -eq 0 ] && printMessageEnd="" || printMessageEnd="\n"
 
   # Checks if message must be shown on console.
-  if [ $noconsole -eq 0 ]; then
-    printf "%-17s %-15s $_messagePrefix%s$printMessageEnd" "$_messageTime" "[$category]" "$_message" |tee -a "$logFile"
+  if [ $LOG_CONSOLE_OFF -eq 0 ]; then
+    printf "%-17s %-15s $_messagePrefix%s$printMessageEnd" "$_messageTime" "[$CATEGORY]" "$_message" |tee -a "$LOG_FILE"
   else
-    printf "%-17s %-15s $_messagePrefix%s$printMessageEnd" "$_messageTime" "[$category]" "$_message" >> "$logFile"
+    printf "%-17s %-15s $_messagePrefix%s$printMessageEnd" "$_messageTime" "[$CATEGORY]" "$_message" >> "$LOG_FILE"
   fi
 
   # Manages exit if needed.
@@ -198,7 +198,7 @@ function writeMessageSL() {
 }
 
 # usage: info <message> [<0 or 1>]
-# Shows message only if verbose is ON.
+# Shows message only if $VERBOSE is ON.
 # Stays on the same line of "0" has been specified
 function info() {
   _doWriteMessage $H_INFO "$1" ${2:-1}
@@ -292,11 +292,11 @@ function extractI18Nelement() {
 
 # usage: checkOSLocale
 function checkOSLocale() {
-  [ $checkConfAndQuit -eq 0 ] && info "Checking LANG environment variable ... "
+  [ $MODE_CHECK_CONFIG_AND_QUIT -eq 0 ] && info "Checking LANG environment variable ... "
 
   # Checks LANG is defined with UTF-8.
   if [ $( echo $LANG |grep -ci "[.]utf[-]*8" ) -eq 0 ] ; then
-      # It is a fatal error but in 'checkConfAndQuit' mode.
+      # It is a fatal error but in 'MODE_CHECK_CONFIG_AND_QUIT' mode.
       warning "You must update your LANG environment variable to use the UTF-8 charmaps ('${LANG:-NONE}' detected). Until then Hemera will attempt using en_US.UTF-8."
 
       export LANG="en_US.UTF-8"
@@ -304,7 +304,7 @@ function checkOSLocale() {
 
   # Ensures defined LANG is avaulable on the OS.
   if [ $( locale -a 2>/dev/null |grep -ci $LANG ) -eq 0 ] && [ $( locale -a 2>/dev/null |grep -c $( echo $LANG |sed -e 's/UTF[-]*8/utf8/' ) ) -eq 0 ]; then
-    # It is a fatal error but in 'checkConfAndQuit' mode.
+    # It is a fatal error but in 'MODE_CHECK_CONFIG_AND_QUIT' mode.
     warning "Although the current OS locale '$LANG' defines to use the UTF-8 charmaps, it is not available (checked with 'locale -a'). You must install it or update your LANG environment variable. Until then Hemera will attempt using en_US.UTF-8."
 
     export LANG="en_US.UTF-8"
@@ -420,8 +420,8 @@ function startProcess() {
   ## Writes the PID file.
   writePIDFile "$_pidFile" "$_processName" || return 1
 
-  ## If noconsole is not already defined, messages must only be written in log file (no more on console).
-  [ -z "$noconsole" ] && export noconsole=1
+  ## If LOG_CONSOLE_OFF is not already defined, messages must only be written in log file (no more on console).
+  [ -z "$LOG_CONSOLE_OFF" ] && export LOG_CONSOLE_OFF=1
 
   ## Executes the specified command -> such a way the command WILL have the PID written in the file.
   info "Starting background command: $*"
@@ -506,7 +506,7 @@ function manageDaemon() {
       isRunningProcess "$_pidFile" "$_processName" && writeMessage "$_name is already running." && return 0
 
       # Starts it, launching this script in daemon mode.
-      logFile="$_logFile" noconsole=${noconsole:-1} "$0" -D >>"$_outputFile" &
+      LOG_FILE="$_logFile" LOG_CONSOLE_OFF=${LOG_CONSOLE_OFF:-1} "$0" -D >>"$_outputFile" &
       writeMessage "Launched $_name."
     ;;
 
@@ -524,8 +524,8 @@ function manageDaemon() {
     ;;
 
     run)
-      ## If noconsole is not already defined, messages must only be written in log file (no more on console).
-      [ -z "$noconsole" ] && export noconsole=1
+      ## If LOG_CONSOLE_OFF is not already defined, messages must only be written in log file (no more on console).
+      [ -z "$LOG_CONSOLE_OFF" ] && export LOG_CONSOLE_OFF=1
 
       # Setups trap ensuring children process will be stopped in same time this main process is stopped.
       setUpKillChildTrap "$_processName"
@@ -586,7 +586,7 @@ function getConfigValue() {
     configFileToRead="$h_globalConfFile"
     if ! checkConfigValue "$configFileToRead" "$_configKey"; then
       # Prints error message (and exit) only if NOT in "check config and quit" mode.
-      [ $checkConfAndQuit -eq 0 ] && errorMessage "Configuration key '$_configKey' NOT found in any of configuration files" $ERROR_CONFIG_VARIOUS
+      [ $MODE_CHECK_CONFIG_AND_QUIT -eq 0 ] && errorMessage "Configuration key '$_configKey' NOT found in any of configuration files" $ERROR_CONFIG_VARIOUS
       echo -e "configuration key \E[31mNOT FOUND\E[0m in any of configuration files" && return $ERROR_CONFIG_VARIOUS
     fi
   fi
@@ -639,42 +639,42 @@ function buildCompletePath() {
 
 # usage: checkPath <path>
 function checkPath() {
-  # Informs only if not in 'checkConfAndQuit' mode.
-  [ $checkConfAndQuit -eq 0 ] && info "Checking path '$1' ... "
+  # Informs only if not in 'MODE_CHECK_CONFIG_AND_QUIT' mode.
+  [ $MODE_CHECK_CONFIG_AND_QUIT -eq 0 ] && info "Checking path '$1' ... "
 
   # Checks if the path exists.
   [ -e "$1" ] && return 0
 
-  # It is not the case, if NOT in 'checkConfAndQuit' mode, it is a fatal error.
-  [ $checkConfAndQuit -eq 0 ] && errorMessage "Unable to find '$1'." $ERROR_CHECK_CONFIG
+  # It is not the case, if NOT in 'MODE_CHECK_CONFIG_AND_QUIT' mode, it is a fatal error.
+  [ $MODE_CHECK_CONFIG_AND_QUIT -eq 0 ] && errorMessage "Unable to find '$1'." $ERROR_CHECK_CONFIG
   # Otherwise, simple returns an error code.
   return $ERROR_CHECK_CONFIG
 }
 
 # usage: checkBin <binary name/path>
 function checkBin() {
-  # Informs only if not in 'checkConfAndQuit' mode.
-  [ $checkConfAndQuit -eq 0 ] && info "Checking binary '$1' ... "
+  # Informs only if not in 'MODE_CHECK_CONFIG_AND_QUIT' mode.
+  [ $MODE_CHECK_CONFIG_AND_QUIT -eq 0 ] && info "Checking binary '$1' ... "
 
   # Checks if the binary is available.
   which "$1" >/dev/null 2>&1 && return 0
 
-  # It is not the case, if NOT in 'checkConfAndQuit' mode, it is a fatal error.
-  [ $checkConfAndQuit -eq 0 ] && errorMessage "Unable to find binary '$1'." $ERROR_CHECK_BIN
+  # It is not the case, if NOT in 'MODE_CHECK_CONFIG_AND_QUIT' mode, it is a fatal error.
+  [ $MODE_CHECK_CONFIG_AND_QUIT -eq 0 ] && errorMessage "Unable to find binary '$1'." $ERROR_CHECK_BIN
   # Otherwise, simple returns an error code.
   return $ERROR_CHECK_BIN
 }
 
 # usage: checkDataFile <data file path>
 function checkDataFile() {
-  # Informs only if not in 'checkConfAndQuit' mode.
-  [ $checkConfAndQuit -eq 0 ] && info "Checking data file '$1' ... "
+  # Informs only if not in 'MODE_CHECK_CONFIG_AND_QUIT' mode.
+  [ $MODE_CHECK_CONFIG_AND_QUIT -eq 0 ] && info "Checking data file '$1' ... "
 
   # Checks if the file exists.
   [ -f "$1" ] && return 0
 
-  # It is not the case, if NOT in 'checkConfAndQuit' mode, it is a fatal error.
-  [ $checkConfAndQuit -eq 0 ] && errorMessage "Unable to find data file '$1'." $ERROR_CHECK_CONFIG
+  # It is not the case, if NOT in 'MODE_CHECK_CONFIG_AND_QUIT' mode, it is a fatal error.
+  [ $MODE_CHECK_CONFIG_AND_QUIT -eq 0 ] && errorMessage "Unable to find data file '$1'." $ERROR_CHECK_CONFIG
   # Otherwise, simple returns an error code.
   return $ERROR_CHECK_CONFIG
 }
@@ -701,17 +701,17 @@ function checkAndSetConfig() {
 
   # Informs about config key to check, according to situation:
   #  - in 'normal' mode, message is only shown in verbose mode
-  #  - in 'checkConfAndQuit' mode, message is always shown
-  [ $checkConfAndQuit -eq 0 ] && info "$_message" || writeMessageSL "$_message"
+  #  - in 'MODE_CHECK_CONFIG_AND_QUIT' mode, message is always shown
+  [ $MODE_CHECK_CONFIG_AND_QUIT -eq 0 ] && info "$_message" || writeMessageSL "$_message"
 
   # Gets the value, according to the type of config.
   _value=$( getConfigValue "$_configKey" )
   valueGetStatus=$?
   if [ $valueGetStatus -ne 0 ]; then
     # Prints error message is any.
-    [ ! -z "$_value" ] && echo -e "$_value" |tee -a "$logFile"
-    # If NOT in 'checkConfAndQuit' mode, it is a fatal error, so exists.
-    [ $checkConfAndQuit -eq 0 ] && exit $valueGetStatus
+    [ ! -z "$_value" ] && echo -e "$_value" |tee -a "$LOG_FILE"
+    # If NOT in 'MODE_CHECK_CONFIG_AND_QUIT' mode, it is a fatal error, so exists.
+    [ $MODE_CHECK_CONFIG_AND_QUIT -eq 0 ] && exit $valueGetStatus
     # Otherwise, simply returns an error status.
     return $valueGetStatus
   fi
@@ -736,15 +736,15 @@ function checkAndSetConfig() {
 
   # Ensures path check has been successfully done.
   if [ $checkPathStatus -ne 0 ]; then
-    # If NOT in 'checkConfAndQuit' mode, it is a fatal error, so exists.
-    [ $checkConfAndQuit -eq 0 ] && exit $checkPathStatus
+    # If NOT in 'MODE_CHECK_CONFIG_AND_QUIT' mode, it is a fatal error, so exists.
+    [ $MODE_CHECK_CONFIG_AND_QUIT -eq 0 ] && exit $checkPathStatus
     # Otherwise, show an error message, and simply returns an error status.
-    echo -e "$_value \E[31mNOT FOUND\E[0m" |tee -a "$logFile"
+    echo -e "$_value \E[31mNOT FOUND\E[0m" |tee -a "$LOG_FILE"
     return $checkPathStatus
   fi
 
   # Here, all is OK, there is nothing more to do.
-  [ $checkConfAndQuit -eq 1 ] && echo "OK" |tee -a "$logFile"
+  [ $MODE_CHECK_CONFIG_AND_QUIT -eq 1 ] && echo "OK" |tee -a "$LOG_FILE"
 
   # Sets the global variable
   export h_lastConfig="$_value"
@@ -767,13 +767,13 @@ function checkAndFormatPath() {
     # Uses "ls" to complete the path in case there is wildcard.
     if [ $( echo "$completePath" |grep -c "*" ) -eq 1 ]; then
       formattedWildcard=$( echo "$completePath" |sed -e 's/^/"/;s/$/"/;s/*/"*"/g;s/""$//;' )
-      completePath=$( ls -d $( eval echo $formattedWildcard ) 2>/dev/null ) || echo -e "\E[31mNOT FOUND\E[0m" |tee -a "$logFile"
+      completePath=$( ls -d $( eval echo $formattedWildcard ) 2>/dev/null ) || echo -e "\E[31mNOT FOUND\E[0m" |tee -a "$LOG_FILE"
     fi
 
-    # Checks if it exists, if 'checkConfAndQuit' mode.
-    if [ $checkConfAndQuit -eq 1 ]; then
+    # Checks if it exists, if 'MODE_CHECK_CONFIG_AND_QUIT' mode.
+    if [ $MODE_CHECK_CONFIG_AND_QUIT -eq 1 ]; then
       writeMessageSL "Checking path '$pathToCheck' ... "
-      [ -d "$completePath" ] && echo "OK" |tee -a "$logFile" || echo -e "\E[31mNOT FOUND\E[0m" |tee -a "$logFile"
+      [ -d "$completePath" ] && echo "OK" |tee -a "$LOG_FILE" || echo -e "\E[31mNOT FOUND\E[0m" |tee -a "$LOG_FILE"
     fi
 
     # In any case, updates the formatted path list.
@@ -924,17 +924,17 @@ function manageJavaHome() {
     checkAndSetConfig "environment.java.home" "$CONFIG_TYPE_OPTION"
     declare -r javaHome="$h_lastConfig"
     if [ -z "$javaHome" ] || [[ "$javaHome" == "$CONFIG_NOT_FOUND" ]]; then
-      # It is a fatal error but in 'checkConfAndQuit' mode.
+      # It is a fatal error but in 'MODE_CHECK_CONFIG_AND_QUIT' mode.
       local _errorMessage="You must either configure JAVA_HOME environment variable or environment.java.home configuration element."
-      [ $checkConfAndQuit -eq 0 ] && errorMessage "$_errorMessage" $ERROR_ENVIRONMENT
+      [ $MODE_CHECK_CONFIG_AND_QUIT -eq 0 ] && errorMessage "$_errorMessage" $ERROR_ENVIRONMENT
       warning "$_errorMessage" && return 0
     fi
 
     # Ensures it exists.
     if [ ! -d "$javaHome" ]; then
-      # It is a fatal error but in 'checkConfAndQuit' mode.
+      # It is a fatal error but in 'MODE_CHECK_CONFIG_AND_QUIT' mode.
       local _errorMessage="environment.java.home defined '$javaHome' which is not found."
-      [ $checkConfAndQuit -eq 0 ] && errorMessage "$_errorMessage" $ERROR_CONFIG_VARIOUS
+      [ $MODE_CHECK_CONFIG_AND_QUIT -eq 0 ] && errorMessage "$_errorMessage" $ERROR_CONFIG_VARIOUS
       warning "$_errorMessage" && return 0
     fi
 
@@ -952,8 +952,8 @@ function manageJavaHome() {
   fi
 
   if [ ! -z "$_errorMessage" ]; then
-    # It is a fatal error but in 'checkConfAndQuit' mode.
-    [ $checkConfAndQuit -eq 0 ] && errorMessage "$_errorMessage" $ERROR_ENVIRONMENT
+    # It is a fatal error but in 'MODE_CHECK_CONFIG_AND_QUIT' mode.
+    [ $MODE_CHECK_CONFIG_AND_QUIT -eq 0 ] && errorMessage "$_errorMessage" $ERROR_ENVIRONMENT
     warning "$_errorMessage" && return 0
   fi
 
@@ -969,17 +969,17 @@ function manageAntHome() {
     checkAndSetConfig "environment.ant.home" "$CONFIG_TYPE_OPTION"
     declare -r antHome="$h_lastConfig"
     if [ -z "$antHome" ] || [[ "$antHome" == "$CONFIG_NOT_FOUND" ]]; then
-      # It is a fatal error but in 'checkConfAndQuit' mode.
+      # It is a fatal error but in 'MODE_CHECK_CONFIG_AND_QUIT' mode.
       local _errorMessage="You must either configure ANT_HOME environment variable or environment.ant.home configuration element."
-      [ $checkConfAndQuit -eq 0 ] && errorMessage "$_errorMessage" $ERROR_ENVIRONMENT
+      [ $MODE_CHECK_CONFIG_AND_QUIT -eq 0 ] && errorMessage "$_errorMessage" $ERROR_ENVIRONMENT
       warning "$_errorMessage" && return 0
     fi
 
     # Ensures it exists.
     if [ ! -d "$antHome" ]; then
-      # It is a fatal error but in 'checkConfAndQuit' mode.
+      # It is a fatal error but in 'MODE_CHECK_CONFIG_AND_QUIT' mode.
       local _errorMessage="environment.ant.home defined '$antHome' which is not found."
-      [ $checkConfAndQuit -eq 0 ] && errorMessage "$_errorMessage" $ERROR_CONFIG_VARIOUS
+      [ $MODE_CHECK_CONFIG_AND_QUIT -eq 0 ] && errorMessage "$_errorMessage" $ERROR_CONFIG_VARIOUS
       warning "$_errorMessage" && return 0
     fi
 
@@ -989,9 +989,9 @@ function manageAntHome() {
   # Checks ant is available.
   local _antPath="$ANT_HOME/bin/ant"
   if [ ! -f "$_antPath" ]; then
-    # It is a fatal error but in 'checkConfAndQuit' mode.
+    # It is a fatal error but in 'MODE_CHECK_CONFIG_AND_QUIT' mode.
     local _errorMessage="Unable to find ant binary, ensure '$ANT_HOME' is the home of an installation of Apache Ant."
-    [ $checkConfAndQuit -eq 0 ] && errorMessage "$_errorMessage" $ERROR_ENVIRONMENT
+    [ $MODE_CHECK_CONFIG_AND_QUIT -eq 0 ] && errorMessage "$_errorMessage" $ERROR_ENVIRONMENT
     warning "$_errorMessage" && return 0
   fi
 

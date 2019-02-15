@@ -13,7 +13,8 @@
 #  CONFIG_FILE        <path>  path of configuration file to consider
 #  GLOBAL_CONFIG_FILE <path>  path of GLOBAL configuration file to consider (configuration element will be checked in this one, if NOT found in the configuration file)
 #
-#  VERBOSE                      0|1  activate info/debug message
+#  DEBUG_UTILITIES              0|1  activate debug message (not recommended in production)
+#  VERBOSE                      0|1  activate info message (not recommended in production)
 #  CATEGORY                 <string> the category which prepends all messages
 #  LOG_CONSOLE_OFF              0|1  disable message output on console
 #  LOG_FILE                   <path> path of the log file
@@ -100,7 +101,8 @@ declare -r DAEMON_SPECIAL_RUN_ACTION="-R"
 
 #########################
 ## Global variables
-VERBOSE=${VERBOSE:-0}
+DEBUG_UTILITIES=${DEBUG_UTILITIES:-0}
+VERBOSE=${VERBOSE:-$DEBUG_UTILITIES}
 # special toggle defining if system must quit after configuration check (activate when using -X option of scripts)
 MODE_CHECK_CONFIG_AND_QUIT=${MODE_CHECK_CONFIG_AND_QUIT:-0}
 # Defines default CATEGORY if not already defined.
@@ -623,10 +625,14 @@ function pruneSlash() {
 
 # usage: checkConfigValue <configuration file> <config key>
 function checkConfigValue() {
+  local _configFile="$1" _configKey="$2"
   # Ensures configuration file exists ('user' one does not exist for root user;
   #  and 'global' configuration file does not exists for only-standard user installation.
-  [ ! -f "$1" ] && return 1
-  [ $( grep -cre "^$2=" "$1" 2>/dev/null ) -gt 0 ]
+  if [ ! -f "$_configFile" ]; then
+    [ $DEBUG_UTILITIES -eq 1 ] && printf "Configuration file '$_configFile' not found ... "
+    return 1
+  fi
+  [ $( grep -cre "^$_configKey=" "$_configFile" 2>/dev/null ) -gt 0 ]
 }
 
 # usage: getConfigValue <config key>
@@ -641,7 +647,7 @@ function getConfigValue() {
     if ! checkConfigValue "$configFileToRead" "$_configKey"; then
       # Prints error message (and exit) only if NOT in "check config and quit" mode.
       [ $MODE_CHECK_CONFIG_AND_QUIT -eq 0 ] && errorMessage "Configuration key '$_configKey' NOT found in any of configuration files" $ERROR_CONFIG_VARIOUS
-      echo -e "configuration key \E[31mNOT FOUND\E[0m in any of configuration files" && return $ERROR_CONFIG_VARIOUS
+      printf "configuration key '$_configKey' \E[31mNOT FOUND\E[0m in any of configuration files" && return $ERROR_CONFIG_VARIOUS
     fi
   fi
 

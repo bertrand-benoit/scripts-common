@@ -41,9 +41,9 @@ trap '_status=$?; [ $_status -ne 0 ] && dumpFuncCall $_status' EXIT
 
 #########################
 ## Constants
-declare -r DEFAULT_ROOT_DIR="${HOME:-/home/$( whoami )}"
+declare -r DEFAULT_ROOT_DIR="${DEFAULT_ROOT_DIR:-${HOME:-/home/$( whoami )}}"
 declare -r DEFAULT_TMP_DIR="${TMP_DIR:-/tmp/$( date +'%Y-%m-%d-%H-%M-%S' )-$( basename $0 )}"
-declare -r DEFAULT_LOG_FILE="$DEFAULT_TMP_DIR/logFile.log"
+declare -r DEFAULT_LOG_FILE="${DEFAULT_LOG_FILE:-$DEFAULT_TMP_DIR/logFile.log}"
 declare -r DEFAULT_TIME_FILE="$DEFAULT_TMP_DIR/timeFile"
 
 declare -r DEFAULT_CONFIG_FILE="$DEFAULT_ROOT_DIR/.config/$( basename $0 ).conf"
@@ -629,7 +629,8 @@ function checkConfigValue() {
   # Ensures configuration file exists ('user' one does not exist for root user;
   #  and 'global' configuration file does not exists for only-standard user installation.
   if [ ! -f "$_configFile" ]; then
-    [ $DEBUG_UTILITIES -eq 1 ] && printf "Configuration file '$_configFile' not found ... "
+    # IMPORTANT: be careful not to print something in the standard output or it would break the checkAndSetConfig feature.
+    [ $DEBUG_UTILITIES -eq 1 ] && printf "Configuration file '$_configFile' not found ... " >&2
     return 1
   fi
   [ $( grep -cre "^$_configKey=" "$_configFile" 2>/dev/null ) -gt 0 ]
@@ -796,10 +797,10 @@ function checkAndSetConfig() {
 
   # Ensures path check has been successfully done.
   if [ $checkPathStatus -ne 0 ]; then
-    # If NOT in 'MODE_CHECK_CONFIG_AND_QUIT' mode, it is a fatal error, so exists.
+    # If NOT in 'MODE_CHECK_CONFIG_AND_QUIT' mode, it is a fatal error, so exits.
     [ $MODE_CHECK_CONFIG_AND_QUIT -eq 0 ] && exit $checkPathStatus
     # Otherwise, show an error message, and simply returns an error status.
-    echo -e "$_value \E[31mNOT FOUND\E[0m" |tee -a "$LOG_FILE"
+    echo -e "'$_value' \E[31mNOT FOUND\E[0m" |tee -a "$LOG_FILE"
     return $checkPathStatus
   fi
 

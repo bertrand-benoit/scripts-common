@@ -12,7 +12,7 @@ It provides lots of features, using mainly GNU/Bash built-in tools, like:
 
 Context
 --
-Initially, I wrote it for my personal needs, creating lots of scripts at home and at work.
+Around 2000, I started writing it for my personal needs, creating lots of scripts at home and at work.
 
 In 2010, I created [Hemera Intelligent System](http://hemerais.bertrand-benoit.net/doc/index.php?title=Hemera:QuickStart) ([Github repository](https://github.com/bertrand-benoit/hemerais)), in which I factorized all my utilities, and developed more robust version.
 
@@ -65,6 +65,7 @@ There are some optional variables you can define before sourcing the `utilities.
  * **PID_DIR**            `<path>`  directory where PID files will be created to manage daemon feature
  * **CONFIG_FILE**        `<path>`  path of configuration file to consider
  * **GLOBAL_CONFIG_FILE** `<path>`  path of GLOBAL configuration file to consider (configuration element will be checked in this one, if NOT found in the configuration file)
+ * **DEBUG_UTILITIES**              `0|1`  activate debug message (not recommended in production)
  * **VERBOSE**                      `0|1`  activate info/debug message
  * **CATEGORY**                 `<string>` the category which prepends all messages
  * **LOG_CONSOLE_OFF**              `0|1`  disable message output on console

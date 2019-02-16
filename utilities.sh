@@ -180,7 +180,7 @@ function getDetailedVersion() {
   # General version is given by the specified $_majorVersion.
   # Before all, trying to get precise version in case of source code version.
   lastCommit=$( cd "$_installDir"; LANG=C git log -1 --abbrev-commit --date=short 2>&1 |grep -wE "commit|Date" |sed -e 's/Date:. / of/' |tr -d '\n' )
-  [ ! -z "$lastCommit" ] && lastCommit=" ($lastCommit)"
+  [ -n "$lastCommit" ] && lastCommit=" ($lastCommit)"
 
   # Prints the general version and the potential precise version (will be empty if not defined).
   echo "$_majorVersion$lastCommit"
@@ -190,8 +190,8 @@ function getDetailedVersion() {
 # Version syntax must be digits separated by dot (e.g. 0.1.0).
 function isVersionGreater() {
   # Safeguard - ensures syntax is respected.
-  [ $( echo "$1" |grep -ce "^[0-9][0-9.]*$" ) -eq 1 ] || errorMessage "Unable to compare version because version '$1' does not fit the syntax (digits separated by dot)" $ERROR_ENVIRONMENT
-  [ $( echo "$2" |grep -ce "^[0-9][0-9.]*$" ) -eq 1 ] || errorMessage "Unable to compare version because version '$2' does not fit the syntax (digits separated by dot)" $ERROR_ENVIRONMENT
+  [ "$( echo "$1" |grep -ce "^[0-9][0-9.]*$" )" -eq 1 ] || errorMessage "Unable to compare version because version '$1' does not fit the syntax (digits separated by dot)" $ERROR_ENVIRONMENT
+  [ "$( echo "$2" |grep -ce "^[0-9][0-9.]*$" )" -eq 1 ] || errorMessage "Unable to compare version because version '$2' does not fit the syntax (digits separated by dot)" $ERROR_ENVIRONMENT
 
   # Checks if the version are equals (in which case the first one is NOT greater than the second).
   [[ "$1" == "$2" ]] && return 1
@@ -235,8 +235,8 @@ function _doWriteMessage() {
   local _level="$1" _message="$2" _newLine="${3:-1}" _exitCode="${4:--1}"
 
   # Safe-guard on numeric values (if this function is directly called).
-  [ $( echo "$_newLine" |grep -ce "^[0-9]$" ) -ne 1 ] && _newLine="1"
-  [ $( echo "$_exitCode" |grep -ce "^-*[0-9]$" ) -ne 1 ] && _exitCode="-1"
+  [ "$( echo "$_newLine" |grep -ce "^[0-9]$" )" -ne 1 ] && _newLine="1"
+  [ "$( echo "$_exitCode" |grep -ce "^-*[0-9]$" )" -ne 1 ] && _exitCode="-1"
 
   # Does nothing if INFO message and NOT VERBOSE.
   [ "$VERBOSE" -eq 0 ] && [ "$_level" = "$LOG_LEVEL_INFO" ] && return 0
@@ -312,13 +312,13 @@ function getLinesFromNToP() {
   local _source="$1" _lineBegin="$2" _lineEnd="$3"
   local _sourceLineCount=$( cat "$_source" |wc -l )
 
-  tail -n $(($_sourceLineCount - $_lineBegin + 1)) "$_source" |head -n $(($_lineEnd - $_lineBegin + 1))
+  tail -n $((_sourceLineCount - _lineBegin + 1)) "$_source" |head -n $((_lineEnd - _lineBegin + 1))
 }
 
 # usage: checkGNUWhich
 # Ensures "which" is a GNU which.
 function checkGNUWhich() {
-  [ $( LANG=C which --version 2>&1|head -n 1 |grep -cw "GNU" ) -eq 1 ]
+  [ "$( LANG=C which --version 2>&1|head -n 1 |grep -cw "GNU" )" -eq 1 ]
 }
 
 # usage: checkEnvironment
@@ -336,7 +336,7 @@ function checkLSB() {
 # usage: isEmptyDirectory <path>
 function isEmptyDirectory()
 {
-  [ $( ls -1 "$1" |wc -l ) -eq 0 ]
+  [ "$( ls -1 "$1" |wc -l )" -eq 0 ]
 }
 
 # usage: matchesOneOf <patterns> <element to check>
@@ -361,7 +361,7 @@ function checkOSLocale() {
   [ "$MODE_CHECK_CONFIG_AND_QUIT" -eq 0 ] && info "Checking LANG environment variable ... "
 
   # Checks LANG is defined with UTF-8.
-  if [ $( echo "$LANG" |grep -ci "[.]utf[-]*8" ) -eq 0 ] ; then
+  if [ "$( echo "$LANG" |grep -ci "[.]utf[-]*8" )" -eq 0 ] ; then
       # It is a fatal error but in 'MODE_CHECK_CONFIG_AND_QUIT' mode.
       warning "You must update your LANG environment variable to use the UTF-8 charmaps ('${LANG:-NONE}' detected). Until then system will attempt using en_US.UTF-8."
 
@@ -369,7 +369,7 @@ function checkOSLocale() {
   fi
 
   # Ensures defined LANG is avaulable on the OS.
-  if [ $( locale -a 2>/dev/null |grep -ci $LANG ) -eq 0 ] && [ $( locale -a 2>/dev/null |grep -c $( echo $LANG |sed -e 's/UTF[-]*8/utf8/' ) ) -eq 0 ]; then
+  if [ "$( locale -a 2>/dev/null |grep -ci $LANG )" -eq 0 ] && [ "$( locale -a 2>/dev/null |grep -c "$( echo $LANG |sed -e 's/UTF[-]*8/utf8/' )" )" -eq 0 ]; then
     # It is a fatal error but in 'MODE_CHECK_CONFIG_AND_QUIT' mode.
     warning "Although the current OS locale '$LANG' defines to use the UTF-8 charmaps, it is not available (checked with 'locale -a'). You must install it or update your LANG environment variable. Until then system will attempt using en_US.UTF-8."
 
@@ -448,7 +448,7 @@ function isRunningProcess() {
 
   # Checks if a process with specified PID is running.
   info "Checking running process, PID=$pidToCheck, process=$_processName."
-  [ $( ps h -p "$pidToCheck" |grep -cE "$_processName($|[ \t])" ) -eq 1 ] && return 0
+  [ "$( ps h -p "$pidToCheck" |grep -cE "$_processName($|[ \t])" )" -eq 1 ] && return 0
 
   # It is not the case, informs and deletes the PID file.
   deletePIDFile "$_pidFile"
@@ -637,7 +637,7 @@ function checkConfigValue() {
     [ "$DEBUG_UTILITIES" -eq 1 ] && printf "Configuration file '$_configFile' not found ... " >&2
     return 1
   fi
-  [ $( grep -ce "^$_configKey=" "$_configFile" 2>/dev/null ) -gt 0 ]
+  [ "$( grep -ce "^$_configKey=" "$_configFile" 2>/dev/null )" -gt 0 ]
 }
 
 # usage: getConfigValue <config key>
@@ -664,7 +664,7 @@ function getConfigValue() {
 
 # usage: getConfigValue <supported values> <value to check>
 function checkAvailableValue() {
-  [ $( echo "$1" |grep -cw "$2" ) -eq 1 ]
+  [ "$( echo "$1" |grep -cw "$2" )" -eq 1 ]
 }
 
 # usage: isAbsolutePath <path>
@@ -774,7 +774,7 @@ function checkAndSetConfig() {
   valueGetStatus=$?
   if [ $valueGetStatus -ne 0 ]; then
     # Prints error message is any.
-    [ ! -z "$_value" ] && echo -e "$_value" |tee -a "$LOG_FILE"
+    [ -n "$_value" ] && echo -e "$_value" |tee -a "$LOG_FILE"
     # If NOT in 'MODE_CHECK_CONFIG_AND_QUIT' mode, it is a fatal error, so exists.
     [ "$MODE_CHECK_CONFIG_AND_QUIT" -eq 0 ] && exit $valueGetStatus
     # Otherwise, simply returns an error status.
@@ -830,9 +830,9 @@ function checkAndFormatPath() {
     ! isAbsolutePath "$pathToCheck" && completePath="${ROOT_DIR:-$DEFAULT_ROOT_DIR}/$pathToCheck"
 
     # Uses "ls" to complete the path in case there is wildcard.
-    if [ $( echo "$completePath" |grep -c "*" ) -eq 1 ]; then
+    if [ "$( echo "$completePath" |grep -c "*" )" -eq 1 ]; then
       formattedWildcard=$( echo "$completePath" |sed -e 's/^/"/;s/$/"/;s/*/"*"/g;s/""$//;' )
-      completePath=$( ls -d $( eval echo "$formattedWildcard" ) 2>/dev/null ) || echo -e "\E[31mNOT FOUND\E[0m" |tee -a "$LOG_FILE"
+      completePath="$( ls -d "$( eval echo "$formattedWildcard" )" 2>/dev/null )" || echo -e "\E[31mNOT FOUND\E[0m" |tee -a "$LOG_FILE"
     fi
 
     # Checks if it exists, if 'MODE_CHECK_CONFIG_AND_QUIT' mode.
@@ -866,9 +866,9 @@ function getUptime() {
 
   local _currentTime=$( date +'%s' )
   local _startTime=$( cat "${TIME_FILE:-$DEFAULT_TIME_FILE}" )
-  local _uptime=$(($_currentTime - $_startTime))
+  local _uptime=$((_currentTime - _startTime))
 
-  printf "%02dd %02dh:%02dm.%02ds" $(($_uptime/86400)) $(($_uptime%86400/3600)) $(($_uptime%3600/60)) $(($_uptime%60))
+  printf "%02dd %02dh:%02dm.%02ds" $((_uptime/86400)) $((_uptime%86400/3600)) $((_uptime%3600/60)) $((_uptime%60))
 }
 
 #########################
@@ -909,7 +909,7 @@ function manageJavaHome() {
     _errorMessage="Unable to find javac binary, ensure '$JAVA_HOME' is the home of a Java Development Kit version 6."
   fi
 
-  if [ ! -z "$_errorMessage" ]; then
+  if [ -n "$_errorMessage" ]; then
     # It is a fatal error but in 'MODE_CHECK_CONFIG_AND_QUIT' mode.
     [ "$MODE_CHECK_CONFIG_AND_QUIT" -eq 0 ] && errorMessage "$_errorMessage" $ERROR_ENVIRONMENT
     warning "$_errorMessage" && return 0

@@ -85,6 +85,27 @@ function testConditionalBehaviour() {
   exitingTests "conditional"
 }
 
+# Version feature Tests.
+function testVersionFeature() {
+  local _fileWithVersion _version _fakeVersion
+  enteringTests "version"
+
+  _fileWithVersion="$currentDir/../README.md"
+  _version=$( getVersion "$_fileWithVersion" )
+  _fakeVersion="999.999.999"
+
+  writeMessage "scripts-common Utilities version: $_version"
+  writeMessage "scripts-common Utilities detailed version: $( getDetailedVersion "$_version" "$currentDir/.." )"
+
+  writeMessage "Checking if $_version is greater than $_fakeVersion ... (should NOT be the case)"
+  isVersionGreater "$_version" "$_fakeVersion" && errorMessage "Version feature is broken" $ERROR_TEST_FAILURE
+
+  writeMessage "Checking if $_fakeVersion is greater than $_version ... (should be the case)"
+  ! isVersionGreater "$_fakeVersion" "$_version" && errorMessage "Version feature is broken" $ERROR_TEST_FAILURE
+
+  exitingTests "version"
+}
+
 # Time feature Tests.
 function testTimeFeature() {
   enteringTests "time"
@@ -135,5 +156,6 @@ EOF
 testRobustness
 testLoggerFeature
 testConditionalBehaviour
+testVersionFeature
 testTimeFeature
 testConfigurationFileFeature

@@ -46,8 +46,9 @@ declare -r DEFAULT_TMP_DIR="${TMP_DIR:-/tmp/$( printf "%(%Y-%m-%d-%H-%M-%S)T" -1
 declare -r DEFAULT_LOG_FILE="${DEFAULT_LOG_FILE:-$DEFAULT_TMP_DIR/logFile.log}"
 declare -r DEFAULT_TIME_FILE="$DEFAULT_TMP_DIR/timeFile"
 
-declare -r DEFAULT_CONFIG_FILE="$DEFAULT_ROOT_DIR/.config/$( basename "$0" ).conf"
-declare -r DEFAULT_GLOBAL_CONFIG_FILE="/etc/$( basename "$0" ).conf"
+launchedScriptName="$( basename "$0" )"
+declare -r DEFAULT_CONFIG_FILE="$DEFAULT_ROOT_DIR/.config/$launchedScriptName.conf"
+declare -r DEFAULT_GLOBAL_CONFIG_FILE="/etc/$launchedScriptName.conf"
 declare -r DEFAULT_PID_DIR="$DEFAULT_TMP_DIR/_pids"
 
 mkdir -p "$DEFAULT_PID_DIR"
@@ -325,8 +326,8 @@ function getLastLinesFromN() {
 
 # usage: getLinesFromNToP <file path> <from line N> <line begin> <line end>
 function getLinesFromNToP() {
-  local _source="$1" _lineBegin="$2" _lineEnd="$3"
-  local _sourceLineCount=$( wc -l <"$_source" )
+  local _source="$1" _lineBegin="$2" _lineEnd="$3" _sourceLineCount
+  _sourceLineCount=$( wc -l <"$_source" )
 
   tail -n $((_sourceLineCount - _lineBegin + 1)) "$_source" |head -n $((_lineEnd - _lineBegin + 1))
 }
@@ -424,13 +425,13 @@ function deletePIDFile() {
 # usage: doExtractInfoFromPIDFile <pid file> <pid|processName>
 # N.B.: must NOT be called directly.
 function doExtractInfoFromPIDFile() {
-  local _pidFile="$1" _info="$2"
+  local _pidFile="$1" _info="$2" _pidToCheck
 
   # Checks if PID file exists, otherwise regard process as NOT running.
   [ ! -f "$_pidFile" ] && errorMessage "PID file '$_pidFile' not found." -1 && return $ERROR_PID_FILE
 
   # Gets PID from file, and ensures it is defined.
-  local _pidToCheck=$( grep -e "^$_info=" "$_pidFile" |head -n 1 |sed -e 's/^[^=]*=//' )
+  _pidToCheck=$( grep -e "^$_info=" "$_pidFile" |head -n 1 |sed -e 's/^[^=]*=//' )
   [ -z "$_pidToCheck" ] && errorMessage "PID file '$_pidFile' empty." -1 && return $ERROR_PID_FILE
 
   # Writes it.
@@ -449,8 +450,8 @@ function getProcessNameFromFile() {
 
 # usage: isRunningProcess <pid file> <process name>
 function isRunningProcess() {
-  local _pidFile="$1"
-  local _processName=$( basename "$2" ) # Removes the path which can be different between each action
+  local _pidFile="$1" _processName
+  _processName="$( basename "$2" )" # Removes the path which can be different between each action
 
   # Checks if PID file exists, otherwise regard process as NOT running.
   [ ! -f "$_pidFile" ] && errorMessage "PID file '$_pidFile' not found." -1 && return $ERROR_PID_FILE
@@ -704,7 +705,8 @@ function isSimplePath() {
 # Defaut <path to prepend> is $ROOT_DIR
 # <force prepend>: 0=disabled (default), 1=force prepend for "single path" (useful for data file)
 function buildCompletePath() {
-  local _path="$( pruneSlash "$1" )" _pathToPreprend="${2:-${ROOT_DIR:-$DEFAULT_ROOT_DIR}}" _forcePrepend="${3:-0}"
+  local _path _pathToPreprend="${2:-${ROOT_DIR:-$DEFAULT_ROOT_DIR}}" _forcePrepend="${3:-0}"
+  _path="$( pruneSlash "$1" )"
 
   # Replaces potential '~' character.
   if [[ "$_path" =~ ^~.*$ ]]; then

@@ -1,2 +1,20 @@
 
+Improvements:
  * getVersion: factorize sed instructions
+
+
+Tests to be completed:
+ * getLastLinesFromN
+ * getLinesFromNToP
+
+
+Tests implementation:
+ * checkGNUWhich
+ * checkEnvironment
+ * checkLSB
+ * isEmptyDirectory
+ * matchesOneOf
+ * extractI18Nelement
+ * checkOSLocale
+ * getURLContents
+ ...

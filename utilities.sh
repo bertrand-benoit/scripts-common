@@ -344,7 +344,7 @@ function matchesOneOf() {
   local _patterns="$1" _element="$2"
 
   for pattern in $_patterns; do
-    [[ "$_element" =~ "$pattern" ]] && return 0
+    [[ "$_element" =~ $pattern ]] && return 0
   done
 
   return 1
@@ -670,13 +670,13 @@ function checkAvailableValue() {
 # usage: isAbsolutePath <path>
 # "true" if the path begins with "/"
 function isAbsolutePath() {
-  [[ "$1" =~ "^\/.*$" ]]
+  [[ "$1" =~ ^\/.*$ ]]
 }
 
 # usage: isSimplePath <path>
 # "true" if there is NO "/" character (and so the tool should be in PATH)
 function isSimplePath() {
-  [[ "$1" =~ "^[^\/]*$" ]]
+  [[ "$1" =~ ^[^\/]*$ ]]
 }
 
 # usage: buildCompletePath <path> [<path to prepend> <force prepend>]
@@ -687,7 +687,7 @@ function buildCompletePath() {
   local _path="$( pruneSlash "$1" )" _pathToPreprend="${2:-${ROOT_DIR:-$DEFAULT_ROOT_DIR}}" _forcePrepend="${3:-0}"
 
   # Replaces potential '~' character.
-  if [[ "$_path" =~ "^~.*$" ]]; then
+  if [[ "$_path" =~ ^~.*$ ]]; then
     homeForSed=$( echo "$( pruneSlash "$HOME" )" |sed -e 's/\//\\\//g;' )
     _path=$( echo "$_path" |sed -e "s/^~/$homeForSed/" )
   fi

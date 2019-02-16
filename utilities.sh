@@ -42,7 +42,7 @@ trap '_status=$?; [ $_status -ne 0 ] && dumpFuncCall $_status' EXIT
 #########################
 ## Constants
 declare -r DEFAULT_ROOT_DIR="${DEFAULT_ROOT_DIR:-${HOME:-/home/$( whoami )}}"
-declare -r DEFAULT_TMP_DIR="${TMP_DIR:-/tmp/$( date +'%Y-%m-%d-%H-%M-%S' )-$( basename "$0" )}"
+declare -r DEFAULT_TMP_DIR="${TMP_DIR:-/tmp/$( printf "%(%Y-%m-%d-%H-%M-%S)T" -1 )-$( basename "$0" )}"
 declare -r DEFAULT_LOG_FILE="${DEFAULT_LOG_FILE:-$DEFAULT_TMP_DIR/logFile.log}"
 declare -r DEFAULT_TIME_FILE="$DEFAULT_TMP_DIR/timeFile"
 
@@ -326,7 +326,7 @@ function getLastLinesFromN() {
 # usage: getLinesFromNToP <file path> <from line N> <line begin> <line end>
 function getLinesFromNToP() {
   local _source="$1" _lineBegin="$2" _lineEnd="$3"
-  local _sourceLineCount=$( cat "$_source" |wc -l )
+  local _sourceLineCount=$( wc -l <"$_source" )
 
   tail -n $((_sourceLineCount - _lineBegin + 1)) "$_source" |head -n $((_lineEnd - _lineBegin + 1))
 }
@@ -872,7 +872,7 @@ function checkAndFormatPath() {
 
 # usage: initializeUptime
 function initializeStartTime() {
-  date +'%s' > "${TIME_FILE:-$DEFAULT_TIME_FILE}"
+  printf "%(%s)T" -1 > "${TIME_FILE:-$DEFAULT_TIME_FILE}"
 }
 
 # usage: finalizeStartTime
@@ -882,11 +882,12 @@ function finalizeStartTime() {
 
 # usage: getUptime
 function getUptime() {
+  local _currentTime _startTime _uptime
   [ ! -f "${TIME_FILE:-$DEFAULT_TIME_FILE}" ] && echo "not started" && exit 0
 
-  local _currentTime=$( date +'%s' )
-  local _startTime=$( cat "${TIME_FILE:-$DEFAULT_TIME_FILE}" )
-  local _uptime=$((_currentTime - _startTime))
+  _currentTime=$( printf "%(%s)T" -1 )
+  _startTime=$( <"${TIME_FILE:-$DEFAULT_TIME_FILE}" )
+  _uptime=$((_currentTime - _startTime))
 
   printf "%02dd %02dh:%02dm.%02ds" $((_uptime/86400)) $((_uptime%86400/3600)) $((_uptime%3600/60)) $((_uptime%60))
 }

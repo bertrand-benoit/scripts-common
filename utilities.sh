@@ -229,11 +229,17 @@ function isVersionGreater() {
 # <message>: the message to show
 # <newline>: 0 to stay on same line, 1 to break line
 # <exit code>: the exit code (usually for ERROR message), -1 for NO exit.
+#
+# N.B.: you should NEVER call this function directly.
 function _doWriteMessage() {
   local _level="$1" _message="$2" _newLine="${3:-1}" _exitCode="${4:--1}"
 
+  # Safe-guard on numeric values (if this function is directly called).
+  [ $( echo "$_newLine" |grep -ce "^[0-9]$" ) -ne 1 ] && _newLine="1"
+  [ $( echo "$_exitCode" |grep -ce "^-*[0-9]$" ) -ne 1 ] && _exitCode="-1"
+
   # Does nothing if INFO message and NOT VERBOSE.
-  [ $VERBOSE -eq 0 ] && [ "$_level" = "$LOG_LEVEL_INFO" ] && return 0
+  [ "$VERBOSE" -eq 0 ] && [ "$_level" = "$LOG_LEVEL_INFO" ] && return 0
 
   local _messageTime=$(date +"%d/%m/%y %H:%M.%S")
 
@@ -243,18 +249,18 @@ function _doWriteMessage() {
   [ "$_level" = "$LOG_LEVEL_WARNING" ] && _messagePrefix="\E[31m\E[4mWARNING\E[0m: "
   [ "$_level" = "$LOG_LEVEL_ERROR" ] && _messagePrefix="\E[31m\E[4mERROR\E[0m: "
 
-  [ $_newLine -eq 0 ] && printMessageEnd="" || printMessageEnd="\n"
+  [ "$_newLine" -eq 0 ] && printMessageEnd="" || printMessageEnd="\n"
 
   # Checks if message must be shown on console.
-  if [ $LOG_CONSOLE_OFF -eq 0 ]; then
-    printf "%-17s %-15s $_messagePrefix%s$printMessageEnd" "$_messageTime" "[$CATEGORY]" "$_message" |tee -a "$LOG_FILE"
+  if [ "$LOG_CONSOLE_OFF" -eq 0 ]; then
+    printf "%-17s %-15s $_messagePrefix%b$printMessageEnd" "$_messageTime" "[$CATEGORY]" "$_message" |tee -a "$LOG_FILE"
   else
-    printf "%-17s %-15s $_messagePrefix%s$printMessageEnd" "$_messageTime" "[$CATEGORY]" "$_message" >> "$LOG_FILE"
+    printf "%-17s %-15s $_messagePrefix%b$printMessageEnd" "$_messageTime" "[$CATEGORY]" "$_message" >> "$LOG_FILE"
   fi
 
   # Manages exit if needed.
-  [ $_exitCode -eq -1 ] && return 0
-  exit $_exitCode
+  [ "$_exitCode" -eq -1 ] && return 0
+  exit "$_exitCode"
 }
 
 # usage: writeMessage <message>
@@ -273,20 +279,20 @@ function writeMessageSL() {
 # Shows message only if $VERBOSE is ON.
 # Stays on the same line of "0" has been specified
 function info() {
-  _doWriteMessage $LOG_LEVEL_INFO "$1" ${2:-1}
+  _doWriteMessage $LOG_LEVEL_INFO "$1" "${2:-1}"
 }
 
 # usage: warning <message> [<0 or 1>]
 # Shows warning message.
 # Stays on the same line of "0" has been specified
 function warning() {
-  _doWriteMessage $LOG_LEVEL_WARNING "$1" ${2:-1} >&2
+  _doWriteMessage $LOG_LEVEL_WARNING "$1" "${2:-1}" >&2
 }
 
 # usage: errorMessage <message> [<exit code>]
 # Shows error message and exits.
 function errorMessage() {
-  _doWriteMessage $LOG_LEVEL_ERROR "$1" 1 ${2:-$ERROR_DEFAULT} >&2
+  _doWriteMessage $LOG_LEVEL_ERROR "$1" 1 "${2:-$ERROR_DEFAULT}" >&2
 }
 
 # usage: updateStructure <dir path>

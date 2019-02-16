@@ -152,6 +152,26 @@ EOF
   exitingTests "config"
 }
 
+# Lines feature Tests.
+function testLinesFeature() {
+  local _fileToCheck _fromLine _toLine _result
+  _fileToCheck="$0"
+  _fromLine=4
+  _toLine=8
+
+  enteringTests "lines"
+
+  # TODO: creates a dedicated test file, and ensures the result ... + test all limit cases
+  writeMessage "Getting lines of file '$_fileToCheck', from line '$_fromLine'"
+  _result=$( getLastLinesFromN "$_fileToCheck" "$_fromLine" ) || errorMessage "Lines feature is broken" $ERROR_TEST_FAILURE
+
+  writeMessage "Getting lines of file '$_fileToCheck', from line '$_fromLine', to line '$_toLine'"
+  _result=$( getLinesFromNToP "$_fileToCheck" "$_fromLine" "$_toLine" ) || errorMessage "Lines feature is broken" $ERROR_TEST_FAILURE
+  [ "$( echo "$_result" |wc -l )" -ne $((_toLine - _fromLine + 1)) ] && errorMessage "Lines feature is broken" $ERROR_TEST_FAILURE
+
+  exitingTests "lines"
+}
+
 ## Run tests.
 testRobustness
 testLoggerFeature
@@ -159,3 +179,4 @@ testConditionalBehaviour
 testVersionFeature
 testTimeFeature
 testConfigurationFileFeature
+testLinesFeature

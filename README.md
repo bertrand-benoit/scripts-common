@@ -7,6 +7,7 @@ It provides lots of features, using mainly GNU/Bash built-in tools, like:
  - configuration file management (local configuration file, global configuration file, check and set configuration)
  - path check and management (data file, directory, executable)
  - pattern matching (including isNumber, isDate ...)
+ - extract lines from a file (from N, or between N and P)
  - daemon start/pause/stop, with PID file management
  - start/stop/up time
 

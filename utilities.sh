@@ -95,6 +95,9 @@ declare -r ERROR_MODE=109
 # External tool fault (e.g. curl, wget ...).
 declare -r ERROR_EXTERNAL_TOOL=110
 
+# PID Files.
+declare -r ERROR_PID_FILE=120
+
 # Timeout (in seconds) when stopping process, before killing it.
 declare -r PROCESS_STOP_TIMEOUT=10
 declare -r DAEMON_SPECIAL_RUN_ACTION="-R"
@@ -114,6 +117,10 @@ LOG_FILE=${LOG_FILE:-$DEFAULT_LOG_FILE}
 # By default, each component has a specific log file
 #  (LOG_FILE_APPEND_MODE allows to define if caller script can continue to log in same file).
 LOG_FILE_APPEND_MODE=${LOG_FILE_APPEND_MODE:-0}
+
+# By default, any error message will totally ends the script.
+# This variable allows changing this behaviour (NOT recommended !!!)
+ERROR_MESSAGE_EXITS_SCRIPT=${ERROR_MESSAGE_EXITS_SCRIPT:-1}
 
 # Initializes environment variables if not already the case.
 ANT_HOME=${ANT_HOME:-}
@@ -236,7 +243,7 @@ function _doWriteMessage() {
 
   # Safe-guard on numeric values (if this function is directly called).
   [ "$( echo "$_newLine" |grep -ce "^[0-9]$" )" -ne 1 ] && _newLine="1"
-  [ "$( echo "$_exitCode" |grep -ce "^-*[0-9]$" )" -ne 1 ] && _exitCode="-1"
+  [ "$( echo "$_exitCode" |grep -ce "^-*[0-9][0-9]*$" )" -ne 1 ] && _exitCode="-1"
 
   # Does nothing if INFO message and NOT VERBOSE.
   [ "$VERBOSE" -eq 0 ] && [ "$_level" = "$LOG_LEVEL_INFO" ] && return 0
@@ -260,6 +267,7 @@ function _doWriteMessage() {
 
   # Manages exit if needed.
   [ "$_exitCode" -eq -1 ] && return 0
+  [ "$ERROR_MESSAGE_EXITS_SCRIPT" -eq -0 ] && return "$_exitCode"
   exit "$_exitCode"
 }
 
@@ -393,7 +401,7 @@ function getURLContents() {
 # usage: writePIDFile <pid file> <process name>
 function writePIDFile() {
   local _pidFile="$1" _processName="$2"
-  [ -f "$_pidFile" ] && errorMessage "PID file '$_pidFile' already exists."
+  [ -f "$_pidFile" ] && errorMessage "PID file '$_pidFile' already exists." -1 && return $ERROR_PID_FILE
   echo "processName=$_processName" > "$_pidFile"
   echo "pid=$$" >> "$_pidFile"
   info "Written PID '$$' of process '$_processName' in file '$1'."
@@ -405,29 +413,30 @@ function deletePIDFile() {
   rm -f "$1"
 }
 
-# usage: extractProcessNameFromFile <pid file>
-function extractProcessNameFromFile() {
-  grep -e "^processName=" "$1" |head -n 1 |sed -e 's/^[^=]*=//'
-}
+# usage: doExtractInfoFromPIDFile <pid file> <pid|processName>
+# N.B.: must NOT be called directly.
+function doExtractInfoFromPIDFile() {
+  local _pidFile="$1" _info="$2"
 
-# usage: getPIDFromFile <pid file>
-function extractPIDFromFile() {
-  grep -e "^pid=" "$1" |head -n 1 |sed -e 's/^pid=\([0-9][0-9]*\)$/\1/'
+  # Checks if PID file exists, otherwise regard process as NOT running.
+  [ ! -f "$_pidFile" ] && errorMessage "PID file '$_pidFile' not found." -1 && return $ERROR_PID_FILE
+
+  # Gets PID from file, and ensures it is defined.
+  local _pidToCheck=$( grep -e "^$_info=" "$_pidFile" |head -n 1 |sed -e 's/^[^=]*=//' )
+  [ -z "$_pidToCheck" ] && errorMessage "PID file '$_pidFile' empty." -1 && return $ERROR_PID_FILE
+
+  # Writes it.
+  echo "$_pidToCheck" && return 0
 }
 
 # usage: getPIDFromFile <pid file>
 function getPIDFromFile() {
-  local _pidFile="$1"
+  doExtractInfoFromPIDFile "$1" "pid"
+}
 
-  # Checks if PID file exists, otherwise regard process as NOT running.
-  [ ! -f "$_pidFile" ] && info "PID file '$_pidFile' not found." && return 1
-
-  # Gets PID from file, and ensures it is defined.
-  local pidToCheck=$( grep -e "^pid=" "$_pidFile" |head -n 1 |sed -e 's/^pid=\([0-9][0-9]*\)$/\1/' )
-  [ -z "$pidToCheck" ] && info "PID file '$_pidFile' empty." && return 1
-
-  # Writes it.
-  echo "$pidToCheck" && return 0
+# usage: getProcessNameFromFile <pid file>
+function getProcessNameFromFile() {
+  doExtractInfoFromPIDFile "$1" "processName"
 }
 
 # usage: isRunningProcess <pid file> <process name>
@@ -436,6 +445,9 @@ function isRunningProcess() {
   local _processName=$( basename "$2" ) # Removes the path which can be different between each action
 
   # Checks if PID file exists, otherwise regard process as NOT running.
+  [ ! -f "$_pidFile" ] && errorMessage "PID file '$_pidFile' not found." -1 && return $ERROR_PID_FILE
+
+  # Extracts the PID.
   pidToCheck=$( getPIDFromFile "$_pidFile" ) || return 1
 
   # Special hacks to help users. Some application uses symbolic links, and so running process name
@@ -463,7 +475,7 @@ function checkAllProcessFromPIDFiles() {
   info "Check any existing PID file (and clean if corresponding process is no more running)."
   # For any existing PID file.
   for pidFile in $( find "${PID_DIR:-$DEFAULT_PID_DIR}" -type f ); do
-    processName=$( extractProcessNameFromFile "$pidFile" )
+    processName=$( getProcessNameFromFile "$pidFile" )
 
     # Checks if there is still a process with this name and this PID,
     #  if it is not the case, the PID file will be removed.

@@ -45,6 +45,36 @@ function testLoggerFeature() {
   exitingTests "logger"
 }
 
+# Robustness Tests.
+function testRobustness() {
+  local _logLevel _message _sameLine _exitStatus
+
+  enteringTests "robustness"
+
+  _logLevel="$LOG_LEVEL_MESSAGE"
+  _message="Simple message"
+  _newLine="1"
+  _exitStatus="-1"
+
+  # doWriteMessage should NOT be called directly, but user can still do it, ensures robustness on parameters control.
+  # Log level
+ _doWriteMessage "Broken Log level ..." "$_message" "$_newLine" "$_exitStatus"
+
+  # Message
+ _doWriteMessage "$_logLevel" "Message on \
+                                several \
+                                lines" "$_newLine" "$_exitStatus"
+
+ _doWriteMessage "$_logLevel" "Message on \nseveral \nlines" "$_newLine" "$_exitStatus"
+  # New line.
+ _doWriteMessage "$_logLevel" "$_message" "Bad value" "$_exitStatus"
+
+  # Exit status.
+ _doWriteMessage "$_logLevel" "$_message" "$_newLine" "Bad value"
+
+  exitingTests "robustness"
+}
+
 # Conditional Tests.
 function testConditionalBehaviour() {
   enteringTests "conditional"
@@ -102,6 +132,7 @@ EOF
 }
 
 ## Run tests.
+testRobustness
 testLoggerFeature
 testConditionalBehaviour
 testTimeFeature

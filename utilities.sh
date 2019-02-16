@@ -248,8 +248,6 @@ function _doWriteMessage() {
   # Does nothing if INFO message and NOT VERBOSE.
   [ "$VERBOSE" -eq 0 ] && [ "$_level" = "$LOG_LEVEL_INFO" ] && return 0
 
-  local _messageTime=$(date +"%d/%m/%y %H:%M.%S")
-
   # Manages level.
   _messagePrefix=""
   [ "$_level" = "$LOG_LEVEL_INFO" ] && _messagePrefix="INFO: "
@@ -260,15 +258,25 @@ function _doWriteMessage() {
 
   # Checks if message must be shown on console.
   if [ "$LOG_CONSOLE_OFF" -eq 0 ]; then
-    printf "%-17s %-15s $_messagePrefix%b$printMessageEnd" "$_messageTime" "[$CATEGORY]" "$_message" |tee -a "$LOG_FILE"
+    printf "%-17(%d/%m/%y %H:%M.%S)T %-15s $_messagePrefix%b$printMessageEnd" -1 "[$CATEGORY]" "$_message" |tee -a "$LOG_FILE"
   else
-    printf "%-17s %-15s $_messagePrefix%b$printMessageEnd" "$_messageTime" "[$CATEGORY]" "$_message" >> "$LOG_FILE"
+    printf "%-17(%d/%m/%y %H:%M.%S)T %-15s $_messagePrefix%b$printMessageEnd" -1 "[$CATEGORY]" "$_message" >> "$LOG_FILE"
   fi
 
   # Manages exit if needed.
   [ "$_exitCode" -eq -1 ] && return 0
   [ "$ERROR_MESSAGE_EXITS_SCRIPT" -eq -0 ] && return "$_exitCode"
   exit "$_exitCode"
+}
+
+# usage: writeOK
+# Utility method aiming only to print "OK", in accordance with configuration.
+function writeOK() {
+  if [ "$LOG_CONSOLE_OFF" -eq 0 ]; then
+    printf "OK\n" |tee -a "$LOG_FILE"
+  else
+    printf "OK\n" >> "$LOG_FILE"
+  fi
 }
 
 # usage: writeMessage <message>
@@ -821,7 +829,7 @@ function checkAndSetConfig() {
   fi
 
   # Here, all is OK, there is nothing more to do.
-  [ "$MODE_CHECK_CONFIG_AND_QUIT" -eq 1 ] && echo "OK" |tee -a "$LOG_FILE"
+  [ "$MODE_CHECK_CONFIG_AND_QUIT" -eq 1 ] && writeOK
 
   # Sets the global variable
   export LAST_READ_CONFIG="$_value"
@@ -850,7 +858,7 @@ function checkAndFormatPath() {
     # Checks if it exists, if 'MODE_CHECK_CONFIG_AND_QUIT' mode.
     if [ "$MODE_CHECK_CONFIG_AND_QUIT" -eq 1 ]; then
       writeMessageSL "Checking path '$pathToCheck' ... "
-      [ -d "$completePath" ] && echo "OK" |tee -a "$LOG_FILE" || echo -e "\E[31mNOT FOUND\E[0m" |tee -a "$LOG_FILE"
+      [ -d "$completePath" ] && writeOK || echo -e "\E[31mNOT FOUND\E[0m" |tee -a "$LOG_FILE"
     fi
 
     # In any case, updates the formatted path list.

@@ -170,7 +170,7 @@ function getVersion() {
     [ ! -f "$_newsFile" ] && echo "0.1.0" && return 0
 
     # Extracts the version.
-    grep "version [0-9]" "$_newsFile" |head -n 1 |sed -e 's/^.*version[ ]\([0-9][0-9.]*\)[ ].*$/\1/;'
+    grep "version [0-9]" "$_newsFile" |head -n 1 |sed -e 's/^.*version[ \t]\([0-9][0-9.]*\)[ \t].*$/\1/;s/^.*version[ \t]\([0-9][0-9.]*\)$/\1/;'
 }
 
 # usage: getDetailedVersion <Major Version> <installation directory>
@@ -202,7 +202,7 @@ function isVersionGreater() {
 
   # Lookups version element until they are not the same.
   index=0
-  while [ ${_v1Array[$index]} -eq ${_v2Array[$index]} ]; do
+  while [ "${_v1Array[$index]}" -eq "${_v2Array[$index]}" ]; do
     let index++
 
     # Ensures there is another element for each version.
@@ -221,7 +221,7 @@ function isVersionGreater() {
   done
 
   # returns the comparaison of the element with 'index'.
-  [ ${_v1Array[$index]} -gt ${_v2Array[$index]} ]
+  [ "${_v1Array[$index]}" -gt "${_v2Array[$index]}" ]
 }
 
 # usage: _doWriteMessage <level> <message> <newline> <exit code>

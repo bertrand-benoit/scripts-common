@@ -1,4 +1,4 @@
-scripts-common v2.0
+scripts-common version 2.0
 ====
 This is a free common utilities/tool-box for GNU/Bash scripts, you can use for your own scripts.
 

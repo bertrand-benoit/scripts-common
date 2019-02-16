@@ -7,6 +7,7 @@
 DEBUG_UTILITIES=1
 VERBOSE=1
 CATEGORY="tests:general"
+ERROR_MESSAGE_EXITS_SCRIPT=0
 
 currentDir=$( dirname "$( which "$0" )" )
 source "$currentDir/../utilities.sh"
@@ -16,6 +17,12 @@ declare -r ERROR_TEST_FAILURE=200
 
 
 ## Defines some functions.
+# usage: testFail <message>
+function testFail() {
+  errorMessage "$1" "$ERROR_TEST_FAILURE"
+  exit "$ERROR_TEST_FAILURE"
+}
+
 # usage: enteringTests <test category>
 function enteringTests() {
   local _testCategory="$1"
@@ -98,10 +105,10 @@ function testVersionFeature() {
   writeMessage "scripts-common Utilities detailed version: $( getDetailedVersion "$_version" "$currentDir/.." )"
 
   writeMessage "Checking if $_version is greater than $_fakeVersion ... (should NOT be the case)"
-  isVersionGreater "$_version" "$_fakeVersion" && errorMessage "Version feature is broken" $ERROR_TEST_FAILURE
+  isVersionGreater "$_version" "$_fakeVersion" && testFail "Version feature is broken" $ERROR_TEST_FAILURE
 
   writeMessage "Checking if $_fakeVersion is greater than $_version ... (should be the case)"
-  ! isVersionGreater "$_fakeVersion" "$_version" && errorMessage "Version feature is broken" $ERROR_TEST_FAILURE
+  ! isVersionGreater "$_fakeVersion" "$_version" && testFail "Version feature is broken" $ERROR_TEST_FAILURE
 
   exitingTests "version"
 }
@@ -133,7 +140,7 @@ function testConfigurationFileFeature() {
 
   # No configuration file defined, it should not be found.
   checkAndSetConfig "$_configKey" "$CONFIG_TYPE_OPTION"
-  [[ "$LAST_READ_CONFIG" != "$CONFIG_NOT_FOUND" ]] && errorMessage "Configuration feature is broken" $ERROR_TEST_FAILURE
+  [[ "$LAST_READ_CONFIG" != "$CONFIG_NOT_FOUND" ]] && testFail "Configuration feature is broken" $ERROR_TEST_FAILURE
 
   # Create a configuration file.
   writeMessage "Creating the temporary configuration file '$_configFile', and configuration key should then be found."
@@ -144,7 +151,7 @@ EOF
   CONFIG_FILE="$_configFile"
   checkAndSetConfig "$_configKey" "$CONFIG_TYPE_OPTION"
   info "$LAST_READ_CONFIG"
-  [[ "$LAST_READ_CONFIG" != "$_configValue" ]] && errorMessage "Configuration feature is broken" $ERROR_TEST_FAILURE
+  [[ "$LAST_READ_CONFIG" != "$_configValue" ]] && testFail "Configuration feature is broken" $ERROR_TEST_FAILURE
 
   # Very important to switch off this mode to keep on testing others features.
   MODE_CHECK_CONFIG_AND_QUIT=0
@@ -163,13 +170,51 @@ function testLinesFeature() {
 
   # TODO: creates a dedicated test file, and ensures the result ... + test all limit cases
   writeMessage "Getting lines of file '$_fileToCheck', from line '$_fromLine'"
-  _result=$( getLastLinesFromN "$_fileToCheck" "$_fromLine" ) || errorMessage "Lines feature is broken" $ERROR_TEST_FAILURE
+  _result=$( getLastLinesFromN "$_fileToCheck" "$_fromLine" ) || testFail "Lines feature is broken" $ERROR_TEST_FAILURE
 
   writeMessage "Getting lines of file '$_fileToCheck', from line '$_fromLine', to line '$_toLine'"
-  _result=$( getLinesFromNToP "$_fileToCheck" "$_fromLine" "$_toLine" ) || errorMessage "Lines feature is broken" $ERROR_TEST_FAILURE
-  [ "$( echo "$_result" |wc -l )" -ne $((_toLine - _fromLine + 1)) ] && errorMessage "Lines feature is broken" $ERROR_TEST_FAILURE
+  _result=$( getLinesFromNToP "$_fileToCheck" "$_fromLine" "$_toLine" ) || testFail "Lines feature is broken" $ERROR_TEST_FAILURE
+  [ "$( echo "$_result" |wc -l )" -ne $((_toLine - _fromLine + 1)) ] && testFail "Lines feature is broken" $ERROR_TEST_FAILURE
 
   exitingTests "lines"
+}
+
+# PID file fature Tests.
+# Tests PID file feature, without the Daemon layer which is tested elsewhere.
+function testPidFileFeature() {
+  local _pidFile _processName
+  enteringTests "pidFiles"
+
+  _pidFile="$DEFAULT_PID_DIR/testPidFileFeature.pid"
+  _processName="testPidFileFeature"
+
+  # Limit tests, on not existing PID file.
+  rm -f "$_pidFile"
+  writeMessage "deletePIDFile on not existing file, must NOT fail"
+  deletePIDFile "$_pidFile" || testFail "PID files feature is broken" $ERROR_TEST_FAILURE
+
+  writeMessage "getPIDFromFile with a not existing file, must produce an ERROR"
+  getPIDFromFile "$_pidFile" && testFail "PID files feature is broken" $ERROR_TEST_FAILURE
+
+  writeMessage "getProcessNameFromFile with a not existing file, must produce an ERROR"
+  getProcessNameFromFile "$_pidFile" && testFail "PID files feature is broken" $ERROR_TEST_FAILURE
+
+  writeMessage "isRunningProcess with a not existing file, must produce an ERROR"
+  isRunningProcess "$_pidFile" "$0" && testFail "PID files feature is broken" $ERROR_TEST_FAILURE
+
+  # Normal situation.
+  writeMessage "Create properly a PID file for this process"
+  writePIDFile "$_pidFile" "$0" || testFail "PID files feature is broken" $ERROR_TEST_FAILURE
+  writeMessage "Trying to write in the existing PID file, must produce an ERROR"
+  writePIDFile "$_pidFile" "$0" && testFail "PID files feature is broken" $ERROR_TEST_FAILURE
+
+  writeMessage "Check if system consider this process as still running"
+  isRunningProcess "$_pidFile" "$0" || testFail "PID files feature is broken" $ERROR_TEST_FAILURE
+
+  writeMessage "Delete the PID file"
+  deletePIDFile "$_pidFile" || testFail "PID files feature is broken" $ERROR_TEST_FAILURE
+
+  exitingTests "pidFiles"
 }
 
 ## Run tests.
@@ -179,4 +224,7 @@ testConditionalBehaviour
 testVersionFeature
 testTimeFeature
 testConfigurationFileFeature
+testPidFileFeature
 testLinesFeature
+
+writeMessage "All Tests are successful !"

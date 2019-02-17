@@ -129,7 +129,7 @@ JAVA_HOME=${JAVA_HOME:-}
 LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-}
 
 #########################
-## Functions - various
+## Functions - Debug
 
 # usage: dumpFuncCall <exit status>
 function dumpFuncCall() {
@@ -170,68 +170,59 @@ function dumpFuncCall() {
   return 0
 }
 
-# usage: getVersion <file path>
-# This method returns the more recent version of the given ChangeLog/NEWS file path.
-function getVersion() {
-    local _newsFile="$1"
 
-    # Lookup the version in the NEWS file (which did not exist in version 0.1)
-    [ ! -f "$_newsFile" ] && echo "0.1.0" && return 0
+#########################
+## Functions - Environment check and utilities
 
-    # Extracts the version.
-    grep "version [0-9]" "$_newsFile" |head -n 1 |sed -e 's/^.*version[ \t]\([0-9][0-9.]*\)[ \t].*$/\1/;s/^.*version[ \t]\([0-9][0-9.]*\)$/\1/;'
+# usage: isRootUser
+function isRootUser() {
+  [[ "$( whoami )" == "root" ]]
 }
 
-# usage: getDetailedVersion <Major Version> <installation directory>
-function getDetailedVersion() {
-  local _majorVersion="$1" _installDir="$2"
-
-  # General version is given by the specified $_majorVersion.
-  # Before all, trying to get precise version in case of source code version.
-  lastCommit=$( cd "$_installDir"; LANG=C git log -1 --abbrev-commit --date=short 2>&1 |grep -wE "commit|Date" |sed -e 's/Date:. / of/' |tr -d '\n' )
-  [ -n "$lastCommit" ] && lastCommit=" ($lastCommit)"
-
-  # Prints the general version and the potential precise version (will be empty if not defined).
-  echo "$_majorVersion$lastCommit"
+# usage: checkGNUWhich
+# Ensures "which" is a GNU which.
+function checkGNUWhich() {
+  [ "$( LANG=C which --version 2>&1|head -n 1 |grep -cw "GNU" )" -eq 1 ]
 }
 
-# usage: isVersionGreater <version 1> <version 2>
-# Version syntax must be digits separated by dot (e.g. 0.1.0).
-function isVersionGreater() {
-  # Safeguard - ensures syntax is respected.
-  [ "$( echo "$1" |grep -ce "^[0-9][0-9.]*$" )" -eq 1 ] || errorMessage "Unable to compare version because version '$1' does not fit the syntax (digits separated by dot)" $ERROR_ENVIRONMENT
-  [ "$( echo "$2" |grep -ce "^[0-9][0-9.]*$" )" -eq 1 ] || errorMessage "Unable to compare version because version '$2' does not fit the syntax (digits separated by dot)" $ERROR_ENVIRONMENT
-
-  # Checks if the version are equals (in which case the first one is NOT greater than the second).
-  [[ "$1" == "$2" ]] && return 1
-
-  # Defines arrays with specified versions.
-  local _v1Array=( ${1//./ } )
-  local _v2Array=( ${2//./ } )
-
-  # Lookups version element until they are not the same.
-  index=0
-  while [ "${_v1Array[$index]}" -eq "${_v2Array[$index]}" ]; do
-    let index++
-
-    # Ensures there is another element for each version.
-    [ -z "${_v1Array[$index]:-}" ] && v1End=1 || v1End=0
-    [ -z "${_v2Array[$index]:-}" ] && v2End=1 || v2End=0
-
-    # Continues on next iteration if NONE is empty.
-    [ $v1End -eq 0 ] && [ $v2End -eq 0 ] && continue
-
-    # If the two versions have been fully managed, they are equals (so the first is NOT greater).
-    [ $v1End -eq 1 ] && [ $v2End -eq 1 ] && return 1
-
-    # if the first version has not been fully managed, it is greater
-    #  than the second (there is still version information), and vice versa.
-    [ $v1End -eq 0 ] && return 0 || return 1
-  done
-
-  # returns the comparaison of the element with 'index'.
-  [ "${_v1Array[$index]}" -gt "${_v2Array[$index]}" ]
+# usage: checkEnvironment
+function checkEnvironment() {
+  checkGNUWhich || errorMessage "GNU version of which not found. Please install it." $ERROR_ENVIRONMENT
 }
+
+# usage: checkLSB
+function checkLSB() {
+  lsbFunctions="/lib/lsb/init-functions"
+  [ -f "$lsbFunctions" ] || errorMessage "Unable to find LSB file $lsbFunctions. Please install it." $ERROR_ENVIRONMENT
+  source "$lsbFunctions"
+}
+
+# usage: checkOSLocale
+function checkOSLocale() {
+  [ "$MODE_CHECK_CONFIG_AND_QUIT" -eq 0 ] && info "Checking LANG environment variable ... "
+
+  # Checks LANG is defined with UTF-8.
+  if [ "$( echo "$LANG" |grep -ci "[.]utf[-]*8" )" -eq 0 ] ; then
+      # It is a fatal error but in 'MODE_CHECK_CONFIG_AND_QUIT' mode.
+      warning "You must update your LANG environment variable to use the UTF-8 charmaps ('${LANG:-NONE}' detected). Until then system will attempt using en_US.UTF-8."
+
+      export LANG="en_US.UTF-8"
+  fi
+
+  # Ensures defined LANG is avaulable on the OS.
+  if [ "$( locale -a 2>/dev/null |grep -ci $LANG )" -eq 0 ] && [ "$( locale -a 2>/dev/null |grep -c "$( echo $LANG |sed -e 's/UTF[-]*8/utf8/' )" )" -eq 0 ]; then
+    # It is a fatal error but in 'MODE_CHECK_CONFIG_AND_QUIT' mode.
+    warning "Although the current OS locale '$LANG' defines to use the UTF-8 charmaps, it is not available (checked with 'locale -a'). You must install it or update your LANG environment variable. Until then system will attempt using en_US.UTF-8."
+
+    export LANG="en_US.UTF-8"
+  fi
+
+  return 0
+}
+
+
+#########################
+## Functions - Logger Feature
 
 # usage: _doWriteMessage <level> <message> <newline> <exit code>
 # <level>: LOG_LEVEL_INFO|LOG_LEVEL_MESSAGE|LOG_LEVEL_WARNING|LOG_LEVEL_ERROR
@@ -313,9 +304,361 @@ function errorMessage() {
   _doWriteMessage $LOG_LEVEL_ERROR "$1" 1 "${2:-$ERROR_DEFAULT}" >&2
 }
 
+
+#########################
+## Functions - [Check]Path Feature
+
 # usage: updateStructure <dir path>
 function updateStructure() {
   mkdir -p "$1" || errorMessage "Unable to create structure pieces (check permissions): $1" $ERROR_ENVIRONMENT
+}
+
+# usage: isEmptyDirectory <path>
+function isEmptyDirectory()
+{
+  [ "$( ls -1 "$1" |wc -l )" -eq 0 ]
+}
+
+# usage: pruneSlash <path>
+# Prunes ending slash, prunes useless slash in path, and returns purified path.
+function pruneSlash() {
+  # Unable to perform equivalent instruction only in GNU/Bash (because there is no way to 'say' 'end of line'):
+  #  - ${HOME/%\//} -> removes only ONE ending slash if any
+  #  - ${HOME/%\/\/*/} -> removes everything even if there is path pieces after last slash.
+  echo "$1" |sed -e 's/\/\/*/\//g;s/^\(.[^\/][^\/]*\)\/\/*$/\1/'
+}
+
+# usage: isRelativePath <path>
+# "true" if there is NO "/" character (and so the tool should be in PATH)
+function isRelativePath() {
+  [[ "$1" =~ ^[^/]*$ ]]
+}
+
+# usage: isAbsolutePath <path>
+# "true" if the path begins with "/"
+function isAbsolutePath() {
+  [[ "$1" =~ ^/.*$ ]]
+}
+
+# usage: checkPath <path>
+function checkPath() {
+  # Informs only if not in 'MODE_CHECK_CONFIG_AND_QUIT' mode.
+  [ "$MODE_CHECK_CONFIG_AND_QUIT" -eq 0 ] && info "Checking path '$1' ... "
+
+  # Checks if the path exists.
+  [ -e "$1" ] && return 0
+
+  # It is not the case, if NOT in 'MODE_CHECK_CONFIG_AND_QUIT' mode, it is a fatal error.
+  [ "$MODE_CHECK_CONFIG_AND_QUIT" -eq 0 ] && errorMessage "Unable to find '$1'." $ERROR_CHECK_CONFIG
+  # Otherwise, simple returns an error code.
+  return $ERROR_CHECK_CONFIG
+}
+
+# usage: checkBin <binary name/path>
+function checkBin() {
+  # Informs only if not in 'MODE_CHECK_CONFIG_AND_QUIT' mode.
+  [ "$MODE_CHECK_CONFIG_AND_QUIT" -eq 0 ] && info "Checking binary '$1' ... "
+
+  # Checks if the binary is available.
+  which "$1" >/dev/null 2>&1 && return 0
+
+  # It is not the case, if NOT in 'MODE_CHECK_CONFIG_AND_QUIT' mode, it is a fatal error.
+  [ "$MODE_CHECK_CONFIG_AND_QUIT" -eq 0 ] && errorMessage "Unable to find binary '$1'." $ERROR_CHECK_BIN
+  # Otherwise, simple returns an error code.
+  return $ERROR_CHECK_BIN
+}
+
+# usage: checkDataFile <data file path>
+function checkDataFile() {
+  # Informs only if not in 'MODE_CHECK_CONFIG_AND_QUIT' mode.
+  [ "$MODE_CHECK_CONFIG_AND_QUIT" -eq 0 ] && info "Checking data file '$1' ... "
+
+  # Checks if the file exists.
+  [ -f "$1" ] && return 0
+
+  # It is not the case, if NOT in 'MODE_CHECK_CONFIG_AND_QUIT' mode, it is a fatal error.
+  [ "$MODE_CHECK_CONFIG_AND_QUIT" -eq 0 ] && errorMessage "Unable to find data file '$1'." $ERROR_CHECK_CONFIG
+  # Otherwise, simple returns an error code.
+  return $ERROR_CHECK_CONFIG
+}
+
+# usage: buildCompletePath <path> [<path to prepend> <force prepend>]
+# <path to prepend>: the path to prepend if the path is NOT absolute and NOT simple.
+# Defaut <path to prepend> is $ROOT_DIR
+# <force prepend>: 0=disabled (default), 1=force prepend for "single path" (useful for data file)
+function buildCompletePath() {
+  local _path _pathToPreprend="${2:-${ROOT_DIR:-$DEFAULT_ROOT_DIR}}" _forcePrepend="${3:-0}"
+  _path="$( pruneSlash "$1" )"
+
+  # Replaces potential '~' character.
+  if [[ "$_path" =~ ^~.*$ ]]; then
+    homeForSed=$( echo "$( pruneSlash "$HOME" )" |sed -e 's/\//\\\//g;' )
+    _path=$( echo "$_path" |sed -e "s/^~/$homeForSed/" )
+  fi
+
+  # Checks if it is an absolute path.
+  isAbsolutePath "$_path" && echo "$_path" && return 0
+
+  # Checks if it is a "simple" path.
+  isRelativePath "$_path" && [ "$_forcePrepend" -eq 0 ] && echo "$_path" && return 0
+
+  # Prefixes with install directory path.
+  echo "$_pathToPreprend/$_path"
+}
+
+# usage: checkAndFormatPath <paths> [<path to prepend>]
+# ALL paths must be specified if a single parameter, separated by colon ':'.
+function checkAndFormatPath() {
+  local _paths="$1" _pathToPreprend="${2:-${ROOT_DIR:-$DEFAULT_ROOT_DIR}}"
+
+  formattedPath=""
+  for pathToCheckRaw in $( echo "$_paths" |sed -e 's/[ ]/€/g;s/:/ /g;' ); do
+    pathToCheck=$( echo "$pathToCheckRaw" |sed -e 's/€/ /g;' )
+
+    # Defines the completes path, according to absolute/relative path.
+    completePath=$( buildCompletePath "$pathToCheck" "$_pathToPreprend" 1 )
+
+    # Uses "ls" to complete the path in case there is wildcard.
+    if [[ "$completePath" =~ ^.*[*].*$ ]]; then
+      formattedWildcard=$( echo "$completePath" |sed -e 's/^/"/;s/$/"/;s/*/"*"/g;s/""$//;' )
+      completePath="$( ls -d "$( eval echo "$formattedWildcard" )" 2>/dev/null )" || echo -e "\E[31mNOT FOUND\E[0m" |tee -a "$LOG_FILE"
+    fi
+
+    # Checks if it exists, if 'MODE_CHECK_CONFIG_AND_QUIT' mode.
+    if [ "$MODE_CHECK_CONFIG_AND_QUIT" -eq 1 ]; then
+      writeMessageSL "Checking path '$pathToCheck' ... "
+      [ -d "$completePath" ] && writeOK || echo -e "\E[31mNOT FOUND\E[0m" |tee -a "$LOG_FILE"
+    fi
+
+    # In any case, updates the formatted path list.
+    [ -n "$formattedPath" ] && formattedPath=$formattedPath:
+    formattedPath=$formattedPath$completePath
+  done
+  echo "$formattedPath"
+}
+
+
+#########################
+## Functions - Configuration file feature.
+
+# usage: checkConfigValue <configuration file> <config key>
+function checkConfigValue() {
+  local _configFile="$1" _configKey="$2"
+  # Ensures configuration file exists ('user' one does not exist for root user;
+  #  and 'global' configuration file does not exists for only-standard user installation.
+  if [ ! -f "$_configFile" ]; then
+    # IMPORTANT: be careful not to print something in the standard output or it would break the checkAndSetConfig feature.
+    [ "$DEBUG_UTILITIES" -eq 1 ] && printf "Configuration file '$_configFile' not found ... " >&2
+    return 1
+  fi
+  [ "$( grep -ce "^$_configKey=" "$_configFile" 2>/dev/null )" -gt 0 ]
+}
+
+# usage: getConfigValue <config key>
+function getConfigValue() {
+  local _configKey="$1"
+
+  # Checks in use configuration file.
+  configFileToRead="${CONFIG_FILE:-$DEFAULT_CONFIG_FILE}"
+  if ! checkConfigValue "$configFileToRead" "$_configKey"; then
+    # Checks in global configuration file.
+    configFileToRead="${GLOBAL_CONFIG_FILE:-$DEFAULT_GLOBAL_CONFIG_FILE}"
+    if ! checkConfigValue "$configFileToRead" "$_configKey"; then
+      # Prints error message (and exit) only if NOT in "check config and quit" mode.
+      [ "$MODE_CHECK_CONFIG_AND_QUIT" -eq 0 ] && errorMessage "Configuration key '$_configKey' NOT found in any of configuration files" $ERROR_CONFIG_VARIOUS
+      printf "configuration key '$_configKey' \E[31mNOT FOUND\E[0m in any of configuration files" && return $ERROR_CONFIG_VARIOUS
+    fi
+  fi
+
+  # Gets the value (may be empty).
+  # N.B.: in case there is several, takes only the last one (interesting when there is several definition in configuration file).
+  grep -e "^$_configKey=" "$configFileToRead" 2>/dev/null|sed -e 's/^[^=]*=//;s/"//g;' |tail -n 1
+  return 0
+}
+
+# usage: checkAndGetConfig <config key> <config type> [<path to prepend>] [<toggle: must exist>]
+# <config key>: the full config key corresponding to configuration element in configuration file
+# <config type>: the type of config among
+#   $CONFIG_TYPE_PATH: path -> path existence will be checked
+#   $CONFIG_TYPE_OPTION: options -> nothing more will be done
+#   $CONFIG_TYPE_BIN: binary -> system will ensure binary path is available
+#   $CONFIG_TYPE_DATA: data -> data file path existence will be checked
+# <path to prepend>: (only for type $CONFIG_TYPE_BIN and $CONFIG_TYPE_DATA) the path to prepend if
+#  the path is NOT absolute and NOT simple. Defaut <path to prepend> is $ROOT_DIR
+# <toggle: must exist>: only for CONFIG_TYPE_PATH; 1 (default) if path must exist, 0 otherwise.
+# If all is OK, it defined the LAST_READ_CONFIG variable with the requested configuration element.
+function checkAndSetConfig() {
+  local _configKey="$1" _configType="$2" _pathToPreprend="${3:-${ROOT_DIR:-$DEFAULT_ROOT_DIR}}" _pathMustExist="${4:-1}"
+  export LAST_READ_CONFIG="$CONFIG_NOT_FOUND" # reinit global variable.
+
+  [ -z "$_configKey" ] && errorMessage "checkAndSetConfig function badly used (configuration key not specified)"
+  [ -z "$_configType" ] && errorMessage "checkAndSetConfig function badly used (configuration type not specified)"
+
+  local _message="Checking '$_configKey' ... "
+
+  # Informs about config key to check, according to situation:
+  #  - in 'normal' mode, message is only shown in VERBOSE mode
+  #  - in 'MODE_CHECK_CONFIG_AND_QUIT' mode, message is always shown
+  [ "$MODE_CHECK_CONFIG_AND_QUIT" -eq 0 ] && info "$_message" || writeMessageSL "$_message"
+
+  # Gets the value, according to the type of config.
+  _value=$( getConfigValue "$_configKey" )
+  valueGetStatus=$?
+  if [ $valueGetStatus -ne 0 ]; then
+    # Prints error message if any.
+    [ -n "$_value" ] && echo -e "$_value" |tee -a "$LOG_FILE"
+    # If NOT in 'MODE_CHECK_CONFIG_AND_QUIT' mode, it is a fatal error, so exists.
+    [ "$MODE_CHECK_CONFIG_AND_QUIT" -eq 0 ] && exit $valueGetStatus
+    # Otherwise, simply returns an error status.
+    return $valueGetStatus
+  fi
+
+  # Manages path if needed (it is the case for PATH, BIN and DATA).
+  checkPathStatus=0
+  if [ "$_configType" -ne $CONFIG_TYPE_OPTION ]; then
+    [ "$_configType" -eq $CONFIG_TYPE_DATA ] && forcePrepend=1 || forcePrepend=0
+    _value=$( buildCompletePath "$_value" "$_pathToPreprend" $forcePrepend )
+
+    if [ "$_configType" -eq $CONFIG_TYPE_PATH ] && [ "$_pathMustExist" -eq 1 ]; then
+      checkPath "$_value"
+      checkPathStatus=$?
+    elif [ "$_configType" -eq $CONFIG_TYPE_BIN ]; then
+      checkBin "$_value"
+      checkPathStatus=$?
+    elif [ "$_configType" -eq $CONFIG_TYPE_DATA ]; then
+      checkDataFile "$_value"
+      checkPathStatus=$?
+    fi
+  fi
+
+  # Ensures path check has been successfully done.
+  if [ $checkPathStatus -ne 0 ]; then
+    # If NOT in 'MODE_CHECK_CONFIG_AND_QUIT' mode, it is a fatal error, so exits.
+    [ "$MODE_CHECK_CONFIG_AND_QUIT" -eq 0 ] && exit $checkPathStatus
+    # Otherwise, show an error message, and simply returns an error status.
+    echo -e "'$_value' \E[31mNOT FOUND\E[0m" |tee -a "$LOG_FILE"
+    return $checkPathStatus
+  fi
+
+  # Here, all is OK, there is nothing more to do.
+  [ "$MODE_CHECK_CONFIG_AND_QUIT" -eq 1 ] && writeOK
+
+  # Sets the global variable
+  export LAST_READ_CONFIG="$_value"
+  return 0
+}
+
+
+#########################
+## Functions - Version Feature
+
+# usage: getVersion <file path>
+# This method returns the more recent version of the given ChangeLog/NEWS file path.
+function getVersion() {
+    local _newsFile="$1"
+
+    # Lookup the version in the NEWS file (which did not exist in version 0.1)
+    [ ! -f "$_newsFile" ] && echo "0.1.0" && return 0
+
+    # Extracts the version.
+    grep "version [0-9]" "$_newsFile" |head -n 1 |sed -e 's/^.*version[ \t]\([0-9][0-9.]*\)[ \t].*$/\1/;s/^.*version[ \t]\([0-9][0-9.]*\)$/\1/;'
+}
+
+# usage: getDetailedVersion <Major Version> <installation directory>
+function getDetailedVersion() {
+  local _majorVersion="$1" _installDir="$2"
+
+  # General version is given by the specified $_majorVersion.
+  # Before all, trying to get precise version in case of source code version.
+  lastCommit=$( cd "$_installDir"; LANG=C git log -1 --abbrev-commit --date=short 2>&1 |grep -wE "commit|Date" |sed -e 's/Date:. / of/' |tr -d '\n' )
+  [ -n "$lastCommit" ] && lastCommit=" ($lastCommit)"
+
+  # Prints the general version and the potential precise version (will be empty if not defined).
+  echo "$_majorVersion$lastCommit"
+}
+
+# usage: isVersionGreater <version 1> <version 2>
+# Version syntax must be digits separated by dot (e.g. 0.1.0).
+function isVersionGreater() {
+  # Safeguard - ensures syntax is respected.
+  [ "$( echo "$1" |grep -ce "^[0-9][0-9.]*$" )" -eq 1 ] || errorMessage "Unable to compare version because version '$1' does not fit the syntax (digits separated by dot)" $ERROR_ENVIRONMENT
+  [ "$( echo "$2" |grep -ce "^[0-9][0-9.]*$" )" -eq 1 ] || errorMessage "Unable to compare version because version '$2' does not fit the syntax (digits separated by dot)" $ERROR_ENVIRONMENT
+
+  # Checks if the version are equals (in which case the first one is NOT greater than the second).
+  [[ "$1" == "$2" ]] && return 1
+
+  # Defines arrays with specified versions.
+  local _v1Array=( ${1//./ } )
+  local _v2Array=( ${2//./ } )
+
+  # Lookups version element until they are not the same.
+  index=0
+  while [ "${_v1Array[$index]}" -eq "${_v2Array[$index]}" ]; do
+    let index++
+
+    # Ensures there is another element for each version.
+    [ -z "${_v1Array[$index]:-}" ] && v1End=1 || v1End=0
+    [ -z "${_v2Array[$index]:-}" ] && v2End=1 || v2End=0
+
+    # Continues on next iteration if NONE is empty.
+    [ $v1End -eq 0 ] && [ $v2End -eq 0 ] && continue
+
+    # If the two versions have been fully managed, they are equals (so the first is NOT greater).
+    [ $v1End -eq 1 ] && [ $v2End -eq 1 ] && return 1
+
+    # if the first version has not been fully managed, it is greater
+    #  than the second (there is still version information), and vice versa.
+    [ $v1End -eq 0 ] && return 0 || return 1
+  done
+
+  # returns the comparaison of the element with 'index'.
+  [ "${_v1Array[$index]}" -gt "${_v2Array[$index]}" ]
+}
+
+
+#########################
+## Functions - Time feature
+
+# usage: initializeUptime
+function initializeStartTime() {
+  printf "%(%s)T" -1 > "${TIME_FILE:-$DEFAULT_TIME_FILE}"
+}
+
+# usage: finalizeStartTime
+function finalizeStartTime() {
+  rm -f "${TIME_FILE:-$DEFAULT_TIME_FILE}"
+}
+
+# usage: getUptime
+function getUptime() {
+  local _currentTime _startTime _uptime
+  [ ! -f "${TIME_FILE:-$DEFAULT_TIME_FILE}" ] && echo "not started" && exit 0
+
+  _currentTime=$( printf "%(%s)T" -1 )
+  _startTime=$( <"${TIME_FILE:-$DEFAULT_TIME_FILE}" )
+  _uptime=$((_currentTime - _startTime))
+
+  printf "%02dd %02dh:%02dm.%02ds" $((_uptime/86400)) $((_uptime%86400/3600)) $((_uptime%3600/60)) $((_uptime%60))
+}
+
+
+#########################
+## Functions - Contents management (files, value, pattern matching ...)
+
+# usage: getConfigValue <supported values> <value to check>
+function checkAvailableValue() {
+  [ "$( echo "$1" |grep -cw "$2" )" -eq 1 ]
+}
+
+# usage: matchesOneOf <patterns> <element to check>
+function matchesOneOf() {
+  local _patterns="$1" _element="$2"
+
+  for pattern in $_patterns; do
+    [[ "$_element" =~ $pattern ]] && return 0
+  done
+
+  return 1
 }
 
 # usage: getLastLinesFromN <file path> <line begin>
@@ -333,68 +676,10 @@ function getLinesFromNToP() {
   tail -n $((_sourceLineCount - _lineBegin + 1)) "$_source" |head -n $((_lineEnd - _lineBegin + 1))
 }
 
-# usage: checkGNUWhich
-# Ensures "which" is a GNU which.
-function checkGNUWhich() {
-  [ "$( LANG=C which --version 2>&1|head -n 1 |grep -cw "GNU" )" -eq 1 ]
-}
-
-# usage: checkEnvironment
-function checkEnvironment() {
-  checkGNUWhich || errorMessage "GNU version of which not found. Please install it." $ERROR_ENVIRONMENT
-}
-
-# usage: checkLSB
-function checkLSB() {
-  lsbFunctions="/lib/lsb/init-functions"
-  [ -f "$lsbFunctions" ] || errorMessage "Unable to find LSB file $lsbFunctions. Please install it." $ERROR_ENVIRONMENT
-  source "$lsbFunctions"
-}
-
-# usage: isEmptyDirectory <path>
-function isEmptyDirectory()
-{
-  [ "$( ls -1 "$1" |wc -l )" -eq 0 ]
-}
-
-# usage: matchesOneOf <patterns> <element to check>
-function matchesOneOf() {
-  local _patterns="$1" _element="$2"
-
-  for pattern in $_patterns; do
-    [[ "$_element" =~ $pattern ]] && return 0
-  done
-
-  return 1
-}
-
 # usage: extractI18Nelement <i18n file> <destination file>
 function extractI18Nelement() {
   local _i18nFile="$1" _destFile="$2"
   grep -e "^[ \t]*[^#]" "$_i18nFile" |sort > "$_destFile"
-}
-
-# usage: checkOSLocale
-function checkOSLocale() {
-  [ "$MODE_CHECK_CONFIG_AND_QUIT" -eq 0 ] && info "Checking LANG environment variable ... "
-
-  # Checks LANG is defined with UTF-8.
-  if [ "$( echo "$LANG" |grep -ci "[.]utf[-]*8" )" -eq 0 ] ; then
-      # It is a fatal error but in 'MODE_CHECK_CONFIG_AND_QUIT' mode.
-      warning "You must update your LANG environment variable to use the UTF-8 charmaps ('${LANG:-NONE}' detected). Until then system will attempt using en_US.UTF-8."
-
-      export LANG="en_US.UTF-8"
-  fi
-
-  # Ensures defined LANG is avaulable on the OS.
-  if [ "$( locale -a 2>/dev/null |grep -ci $LANG )" -eq 0 ] && [ "$( locale -a 2>/dev/null |grep -c "$( echo $LANG |sed -e 's/UTF[-]*8/utf8/' )" )" -eq 0 ]; then
-    # It is a fatal error but in 'MODE_CHECK_CONFIG_AND_QUIT' mode.
-    warning "Although the current OS locale '$LANG' defines to use the UTF-8 charmaps, it is not available (checked with 'locale -a'). You must install it or update your LANG environment variable. Until then system will attempt using en_US.UTF-8."
-
-    export LANG="en_US.UTF-8"
-  fi
-
-  return 0
 }
 
 # usage: getURLContents <url> <destination file>
@@ -405,8 +690,9 @@ function getURLContents() {
   return 0
 }
 
+
 #########################
-## Functions - PID & Process management
+## Functions - PID File Feature
 
 # usage: writePIDFile <pid file> <process name>
 function writePIDFile() {
@@ -492,6 +778,10 @@ function checkAllProcessFromPIDFiles() {
     isRunningProcess "$pidFile" "$processName"
   done
 }
+
+
+#########################
+## Functions - Daemon star/stop/isRunning Feature
 
 # usage: startProcess <pid file> <process name>
 function startProcess() {
@@ -632,271 +922,10 @@ function daemonUsage() {
   exit $ERROR_USAGE
 }
 
-#########################
-## Functions - configuration
-
-# usage: isRootUser
-function isRootUser() {
-  [[ "$( whoami )" == "root" ]]
-}
-
-# usage: pruneSlash <path>
-# Prunes ending slash, prunes useless slash in path, and returns purified path.
-function pruneSlash() {
-  # Unable to perform equivalent instruction only in GNU/Bash (because there is no way to 'say' 'end of line'):
-  #  - ${HOME/%\//} -> removes only ONE ending slash if any
-  #  - ${HOME/%\/\/*/} -> removes everything even if there is path pieces after last slash.
-  echo "$1" |sed -e 's/\/\/*/\//g;s/^\(.[^\/][^\/]*\)\/\/*$/\1/'
-}
-
-# usage: checkConfigValue <configuration file> <config key>
-function checkConfigValue() {
-  local _configFile="$1" _configKey="$2"
-  # Ensures configuration file exists ('user' one does not exist for root user;
-  #  and 'global' configuration file does not exists for only-standard user installation.
-  if [ ! -f "$_configFile" ]; then
-    # IMPORTANT: be careful not to print something in the standard output or it would break the checkAndSetConfig feature.
-    [ "$DEBUG_UTILITIES" -eq 1 ] && printf "Configuration file '$_configFile' not found ... " >&2
-    return 1
-  fi
-  [ "$( grep -ce "^$_configKey=" "$_configFile" 2>/dev/null )" -gt 0 ]
-}
-
-# usage: getConfigValue <config key>
-function getConfigValue() {
-  local _configKey="$1"
-
-  # Checks in use configuration file.
-  configFileToRead="${CONFIG_FILE:-$DEFAULT_CONFIG_FILE}"
-  if ! checkConfigValue "$configFileToRead" "$_configKey"; then
-    # Checks in global configuration file.
-    configFileToRead="${GLOBAL_CONFIG_FILE:-$DEFAULT_GLOBAL_CONFIG_FILE}"
-    if ! checkConfigValue "$configFileToRead" "$_configKey"; then
-      # Prints error message (and exit) only if NOT in "check config and quit" mode.
-      [ "$MODE_CHECK_CONFIG_AND_QUIT" -eq 0 ] && errorMessage "Configuration key '$_configKey' NOT found in any of configuration files" $ERROR_CONFIG_VARIOUS
-      printf "configuration key '$_configKey' \E[31mNOT FOUND\E[0m in any of configuration files" && return $ERROR_CONFIG_VARIOUS
-    fi
-  fi
-
-  # Gets the value (may be empty).
-  # N.B.: in case there is several, takes only the last one (interesting when there is several definition in configuration file).
-  grep -e "^$_configKey=" "$configFileToRead" 2>/dev/null|sed -e 's/^[^=]*=//;s/"//g;' |tail -n 1
-  return 0
-}
-
-# usage: getConfigValue <supported values> <value to check>
-function checkAvailableValue() {
-  [ "$( echo "$1" |grep -cw "$2" )" -eq 1 ]
-}
-
-# usage: isAbsolutePath <path>
-# "true" if the path begins with "/"
-function isAbsolutePath() {
-  [[ "$1" =~ ^/.*$ ]]
-}
-
-# usage: isRelativePath <path>
-# "true" if there is NO "/" character (and so the tool should be in PATH)
-function isRelativePath() {
-  [[ "$1" =~ ^[^/]*$ ]]
-}
-
-# usage: buildCompletePath <path> [<path to prepend> <force prepend>]
-# <path to prepend>: the path to prepend if the path is NOT absolute and NOT simple.
-# Defaut <path to prepend> is $ROOT_DIR
-# <force prepend>: 0=disabled (default), 1=force prepend for "single path" (useful for data file)
-function buildCompletePath() {
-  local _path _pathToPreprend="${2:-${ROOT_DIR:-$DEFAULT_ROOT_DIR}}" _forcePrepend="${3:-0}"
-  _path="$( pruneSlash "$1" )"
-
-  # Replaces potential '~' character.
-  if [[ "$_path" =~ ^~.*$ ]]; then
-    homeForSed=$( echo "$( pruneSlash "$HOME" )" |sed -e 's/\//\\\//g;' )
-    _path=$( echo "$_path" |sed -e "s/^~/$homeForSed/" )
-  fi
-
-  # Checks if it is an absolute path.
-  isAbsolutePath "$_path" && echo "$_path" && return 0
-
-  # Checks if it is a "simple" path.
-  isRelativePath "$_path" && [ "$_forcePrepend" -eq 0 ] && echo "$_path" && return 0
-
-  # Prefixes with install directory path.
-  echo "$_pathToPreprend/$_path"
-}
-
-# usage: checkPath <path>
-function checkPath() {
-  # Informs only if not in 'MODE_CHECK_CONFIG_AND_QUIT' mode.
-  [ "$MODE_CHECK_CONFIG_AND_QUIT" -eq 0 ] && info "Checking path '$1' ... "
-
-  # Checks if the path exists.
-  [ -e "$1" ] && return 0
-
-  # It is not the case, if NOT in 'MODE_CHECK_CONFIG_AND_QUIT' mode, it is a fatal error.
-  [ "$MODE_CHECK_CONFIG_AND_QUIT" -eq 0 ] && errorMessage "Unable to find '$1'." $ERROR_CHECK_CONFIG
-  # Otherwise, simple returns an error code.
-  return $ERROR_CHECK_CONFIG
-}
-
-# usage: checkBin <binary name/path>
-function checkBin() {
-  # Informs only if not in 'MODE_CHECK_CONFIG_AND_QUIT' mode.
-  [ "$MODE_CHECK_CONFIG_AND_QUIT" -eq 0 ] && info "Checking binary '$1' ... "
-
-  # Checks if the binary is available.
-  which "$1" >/dev/null 2>&1 && return 0
-
-  # It is not the case, if NOT in 'MODE_CHECK_CONFIG_AND_QUIT' mode, it is a fatal error.
-  [ "$MODE_CHECK_CONFIG_AND_QUIT" -eq 0 ] && errorMessage "Unable to find binary '$1'." $ERROR_CHECK_BIN
-  # Otherwise, simple returns an error code.
-  return $ERROR_CHECK_BIN
-}
-
-# usage: checkDataFile <data file path>
-function checkDataFile() {
-  # Informs only if not in 'MODE_CHECK_CONFIG_AND_QUIT' mode.
-  [ "$MODE_CHECK_CONFIG_AND_QUIT" -eq 0 ] && info "Checking data file '$1' ... "
-
-  # Checks if the file exists.
-  [ -f "$1" ] && return 0
-
-  # It is not the case, if NOT in 'MODE_CHECK_CONFIG_AND_QUIT' mode, it is a fatal error.
-  [ "$MODE_CHECK_CONFIG_AND_QUIT" -eq 0 ] && errorMessage "Unable to find data file '$1'." $ERROR_CHECK_CONFIG
-  # Otherwise, simple returns an error code.
-  return $ERROR_CHECK_CONFIG
-}
-
-# usage: checkAndGetConfig <config key> <config type> [<path to prepend>] [<toggle: must exist>]
-# <config key>: the full config key corresponding to configuration element in configuration file
-# <config type>: the type of config among
-#   $CONFIG_TYPE_PATH: path -> path existence will be checked
-#   $CONFIG_TYPE_OPTION: options -> nothing more will be done
-#   $CONFIG_TYPE_BIN: binary -> system will ensure binary path is available
-#   $CONFIG_TYPE_DATA: data -> data file path existence will be checked
-# <path to prepend>: (only for type $CONFIG_TYPE_BIN and $CONFIG_TYPE_DATA) the path to prepend if
-#  the path is NOT absolute and NOT simple. Defaut <path to prepend> is $ROOT_DIR
-# <toggle: must exist>: only for CONFIG_TYPE_PATH; 1 (default) if path must exist, 0 otherwise.
-# If all is OK, it defined the LAST_READ_CONFIG variable with the requested configuration element.
-function checkAndSetConfig() {
-  local _configKey="$1" _configType="$2" _pathToPreprend="${3:-${ROOT_DIR:-$DEFAULT_ROOT_DIR}}" _pathMustExist="${4:-1}"
-  export LAST_READ_CONFIG="$CONFIG_NOT_FOUND" # reinit global variable.
-
-  [ -z "$_configKey" ] && errorMessage "checkAndSetConfig function badly used (configuration key not specified)"
-  [ -z "$_configType" ] && errorMessage "checkAndSetConfig function badly used (configuration type not specified)"
-
-  local _message="Checking '$_configKey' ... "
-
-  # Informs about config key to check, according to situation:
-  #  - in 'normal' mode, message is only shown in VERBOSE mode
-  #  - in 'MODE_CHECK_CONFIG_AND_QUIT' mode, message is always shown
-  [ "$MODE_CHECK_CONFIG_AND_QUIT" -eq 0 ] && info "$_message" || writeMessageSL "$_message"
-
-  # Gets the value, according to the type of config.
-  _value=$( getConfigValue "$_configKey" )
-  valueGetStatus=$?
-  if [ $valueGetStatus -ne 0 ]; then
-    # Prints error message if any.
-    [ -n "$_value" ] && echo -e "$_value" |tee -a "$LOG_FILE"
-    # If NOT in 'MODE_CHECK_CONFIG_AND_QUIT' mode, it is a fatal error, so exists.
-    [ "$MODE_CHECK_CONFIG_AND_QUIT" -eq 0 ] && exit $valueGetStatus
-    # Otherwise, simply returns an error status.
-    return $valueGetStatus
-  fi
-
-  # Manages path if needed (it is the case for PATH, BIN and DATA).
-  checkPathStatus=0
-  if [ "$_configType" -ne $CONFIG_TYPE_OPTION ]; then
-    [ "$_configType" -eq $CONFIG_TYPE_DATA ] && forcePrepend=1 || forcePrepend=0
-    _value=$( buildCompletePath "$_value" "$_pathToPreprend" $forcePrepend )
-
-    if [ "$_configType" -eq $CONFIG_TYPE_PATH ] && [ "$_pathMustExist" -eq 1 ]; then
-      checkPath "$_value"
-      checkPathStatus=$?
-    elif [ "$_configType" -eq $CONFIG_TYPE_BIN ]; then
-      checkBin "$_value"
-      checkPathStatus=$?
-    elif [ "$_configType" -eq $CONFIG_TYPE_DATA ]; then
-      checkDataFile "$_value"
-      checkPathStatus=$?
-    fi
-  fi
-
-  # Ensures path check has been successfully done.
-  if [ $checkPathStatus -ne 0 ]; then
-    # If NOT in 'MODE_CHECK_CONFIG_AND_QUIT' mode, it is a fatal error, so exits.
-    [ "$MODE_CHECK_CONFIG_AND_QUIT" -eq 0 ] && exit $checkPathStatus
-    # Otherwise, show an error message, and simply returns an error status.
-    echo -e "'$_value' \E[31mNOT FOUND\E[0m" |tee -a "$LOG_FILE"
-    return $checkPathStatus
-  fi
-
-  # Here, all is OK, there is nothing more to do.
-  [ "$MODE_CHECK_CONFIG_AND_QUIT" -eq 1 ] && writeOK
-
-  # Sets the global variable
-  export LAST_READ_CONFIG="$_value"
-  return 0
-}
-
-# usage: checkAndFormatPath <paths> [<path to prepend>]
-# ALL paths must be specified if a single parameter, separated by colon ':'.
-function checkAndFormatPath() {
-  local _paths="$1" _pathToPreprend="${2:-${ROOT_DIR:-$DEFAULT_ROOT_DIR}}"
-
-  formattedPath=""
-  for pathToCheckRaw in $( echo "$_paths" |sed -e 's/[ ]/€/g;s/:/ /g;' ); do
-    pathToCheck=$( echo "$pathToCheckRaw" |sed -e 's/€/ /g;' )
-
-    # Defines the completes path, according to absolute/relative path.
-    completePath=$( buildCompletePath "$pathToCheck" "$_pathToPreprend" 1 )
-
-    # Uses "ls" to complete the path in case there is wildcard.
-    if [[ "$completePath" =~ ^.*[*].*$ ]]; then
-      formattedWildcard=$( echo "$completePath" |sed -e 's/^/"/;s/$/"/;s/*/"*"/g;s/""$//;' )
-      completePath="$( ls -d "$( eval echo "$formattedWildcard" )" 2>/dev/null )" || echo -e "\E[31mNOT FOUND\E[0m" |tee -a "$LOG_FILE"
-    fi
-
-    # Checks if it exists, if 'MODE_CHECK_CONFIG_AND_QUIT' mode.
-    if [ "$MODE_CHECK_CONFIG_AND_QUIT" -eq 1 ]; then
-      writeMessageSL "Checking path '$pathToCheck' ... "
-      [ -d "$completePath" ] && writeOK || echo -e "\E[31mNOT FOUND\E[0m" |tee -a "$LOG_FILE"
-    fi
-
-    # In any case, updates the formatted path list.
-    [ -n "$formattedPath" ] && formattedPath=$formattedPath:
-    formattedPath=$formattedPath$completePath
-  done
-  echo "$formattedPath"
-}
 
 #########################
-## Functions - uptime
+## Functions - Third Part PATH feature
 
-# usage: initializeUptime
-function initializeStartTime() {
-  printf "%(%s)T" -1 > "${TIME_FILE:-$DEFAULT_TIME_FILE}"
-}
-
-# usage: finalizeStartTime
-function finalizeStartTime() {
-  rm -f "${TIME_FILE:-$DEFAULT_TIME_FILE}"
-}
-
-# usage: getUptime
-function getUptime() {
-  local _currentTime _startTime _uptime
-  [ ! -f "${TIME_FILE:-$DEFAULT_TIME_FILE}" ] && echo "not started" && exit 0
-
-  _currentTime=$( printf "%(%s)T" -1 )
-  _startTime=$( <"${TIME_FILE:-$DEFAULT_TIME_FILE}" )
-  _uptime=$((_currentTime - _startTime))
-
-  printf "%02dd %02dh:%02dm.%02ds" $((_uptime/86400)) $((_uptime%86400/3600)) $((_uptime%3600/60)) $((_uptime%60))
-}
-
-#########################
-## Functions - source code management
 # usage: manageJavaHome
 # Ensures JAVA environment is ok, and ensures JAVA_HOME is defined.
 function manageJavaHome() {

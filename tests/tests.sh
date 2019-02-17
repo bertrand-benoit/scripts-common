@@ -148,7 +148,7 @@ function testCheckPathFeature() {
   MODE_CHECK_CONFIG_AND_QUIT=1
 
   # Limit tests, on not existing files.
-  mkdir -p "$_checkPathRootDir" || testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
+  updateStructure "$_checkPathRootDir" || testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
   writeMessage "Checking NOT existing Data file."
   checkDataFile "$_checkPathRootDir/$_dataFileName" && testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
 
@@ -161,7 +161,7 @@ function testCheckPathFeature() {
   # Normal situation.
   touch "$_checkPathRootDir/$_dataFileName" "$_checkPathRootDir/$_binFileName" || testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
   chmod +x "$_checkPathRootDir/$_binFileName" || testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
-  mkdir -p "$_checkPathRootDir/$_subPathDir" || testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
+  updateStructure "$_checkPathRootDir/$_subPathDir" || testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
 
   writeMessage "Checking existing Data file."
   checkDataFile "$_checkPathRootDir/$_dataFileName" || testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
@@ -227,7 +227,7 @@ function testConfigurationFileFeature() {
 
   # No configuration file defined, it should not be found.
   checkAndSetConfig "$_configKey" "$CONFIG_TYPE_OPTION"
-  [[ "$LAST_READ_CONFIG" != "$CONFIG_NOT_FOUND" ]] && testFail "Configuration feature is broken" $ERROR_TEST_FAILURE
+  assertValue "$LAST_READ_CONFIG" "$CONFIG_NOT_FOUND" || testFail "Configuration feature is broken" $ERROR_TEST_FAILURE
 
   # TODO: check all other kind of $CONFIG_TYPE_XX
 
@@ -240,7 +240,7 @@ EOF
   CONFIG_FILE="$_configFile"
   checkAndSetConfig "$_configKey" "$CONFIG_TYPE_OPTION"
   info "$LAST_READ_CONFIG"
-  [[ "$LAST_READ_CONFIG" != "$_configValue" ]] && testFail "Configuration feature is broken" $ERROR_TEST_FAILURE
+  assertValue "$LAST_READ_CONFIG" "$_configValue" || testFail "Configuration feature is broken" $ERROR_TEST_FAILURE
 
   # Very important to switch off this mode to keep on testing others features.
   MODE_CHECK_CONFIG_AND_QUIT=0
@@ -302,6 +302,8 @@ function testPidFileFeature() {
 
   writeMessage "Delete the PID file"
   deletePIDFile "$_pidFile" || testFail "PID files feature is broken" $ERROR_TEST_FAILURE
+
+  # TODO: test checkAllProcessFromPIDFiles
 
   exitingTests "pidFiles"
 }

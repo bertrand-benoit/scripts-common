@@ -23,6 +23,14 @@ function testFail() {
   exit "$ERROR_TEST_FAILURE"
 }
 
+# usage: assertValue <value> <wanted value>
+function assertValue() {
+  local _value="$1" _wantedValue="$2"
+
+  info "Checking if value '$_value' is equal to '$_wantedValue' ..."
+  [[ "$_value" == "$_wantedValue" ]]
+}
+
 # usage: enteringTests <test category>
 function enteringTests() {
   local _testCategory="$1"
@@ -125,6 +133,85 @@ function testTimeFeature() {
   exitingTests "time"
 }
 
+function testCheckPathFeature() {
+  local _failureErrorMessage="Check path feature is broken"
+  local _checkPathRootDir="$DEFAULT_TMP_DIR/checkPathRootDir"
+  local _dataFileName="myFile.data"
+  local _binFileName="myFile.bin"
+  local _subPathDir="myDir"
+  local _homeRelativePath="something/not/existing"
+  local _pathsToFormatBefore _pathsToFormatAfter
+
+  enteringTests "checkPath"
+
+  # To avoid error when configuration key is not found, switch on this mode.
+  MODE_CHECK_CONFIG_AND_QUIT=1
+
+  # Limit tests, on not existing files.
+  mkdir -p "$_checkPathRootDir" || testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
+  writeMessage "Checking NOT existing Data file."
+  checkDataFile "$_checkPathRootDir/$_dataFileName" && testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
+
+  writeMessage "Checking NOT existing Binary file."
+  checkBin "$_checkPathRootDir/$_binFileName" && testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
+
+  writeMessage "Checking NOT existing Path."
+  checkPath "$_checkPathRootDir/$_subPathDir" && testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
+
+  # Normal situation.
+  touch "$_checkPathRootDir/$_dataFileName" "$_checkPathRootDir/$_binFileName" || testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
+  chmod +x "$_checkPathRootDir/$_binFileName" || testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
+  mkdir -p "$_checkPathRootDir/$_subPathDir" || testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
+
+  writeMessage "Checking existing Data file."
+  checkDataFile "$_checkPathRootDir/$_dataFileName" || testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
+
+  writeMessage "Checking existing Binary file."
+  checkBin "$_checkPathRootDir/$_binFileName" || testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
+
+  writeMessage "Checking existing Path."
+  checkPath "$_checkPathRootDir/$_subPathDir" || testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
+
+  # Absolute/Relative path and completePath.
+  writeMessage "Checking isAbsolutePath function."
+  isAbsolutePath "$_checkPathRootDir" || testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
+  isAbsolutePath "$_subPathDir" && testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
+
+  writeMessage "Checking isRelativePath function."
+  isRelativePath "$_checkPathRootDir" && testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
+  isRelativePath "$_subPathDir" || testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
+
+  writeMessage "Checking buildCompletePath function."
+  # Absolute path stays unchanged.
+  assertValue "$( buildCompletePath "$_checkPathRootDir" )" "$_checkPathRootDir" ]] || testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
+
+  # Relative path stays unchanged, if no prepend arguments is specified.
+  assertValue "$( buildCompletePath "$_subPathDir" )" "$_subPathDir" || testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
+  assertValue "$( buildCompletePath "$_subPathDir" "$_checkPathRootDir" )" "$_subPathDir" || testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
+
+  # Relative path must be fully completed, with all prepend arguments.
+  assertValue "$( buildCompletePath "$_subPathDir" "$_checkPathRootDir" 1 )" "$_checkPathRootDir/$_subPathDir" ]] || testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
+
+  # Special situation: HOME subsitution.
+  writeMessage "Checking buildCompletePath function, for ~ substitution with HOME environment variable."
+  assertValue "$( buildCompletePath "~/$_homeRelativePath" )" "$HOME/$_homeRelativePath" || testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
+
+    # Very important to switch off this mode to keep on testing others features.
+    MODE_CHECK_CONFIG_AND_QUIT=0
+
+  # checkAndFormatPath Tests.
+  writeMessage "Checking checkAndFormatPath function."
+  # N.B.: at end, use a wildcard instead of the ending 'ir' part.
+  _pathsToFormatBefore="$_subPathDir:~/$_homeRelativePath:${_subPathDir/ir/}*"
+  _pathsToFormatAfter="$_checkPathRootDir/$_subPathDir:$HOME/$_homeRelativePath:$_checkPathRootDir/$_subPathDir"
+  assertValue "$( checkAndFormatPath "$_pathsToFormatBefore" "$_checkPathRootDir" )" "$_pathsToFormatAfter" || testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
+
+  # Very important to switch off this mode to keep on testing others features.
+  MODE_CHECK_CONFIG_AND_QUIT=0
+
+  exitingTests "checkPath"
+}
+
 # Configuration file feature Tests.
 function testConfigurationFileFeature() {
   local _configKey="my.config.key"
@@ -141,6 +228,8 @@ function testConfigurationFileFeature() {
   # No configuration file defined, it should not be found.
   checkAndSetConfig "$_configKey" "$CONFIG_TYPE_OPTION"
   [[ "$LAST_READ_CONFIG" != "$CONFIG_NOT_FOUND" ]] && testFail "Configuration feature is broken" $ERROR_TEST_FAILURE
+
+  # TODO: check all other kind of $CONFIG_TYPE_XX
 
   # Create a configuration file.
   writeMessage "Creating the temporary configuration file '$_configFile', and configuration key should then be found."
@@ -223,6 +312,7 @@ testLoggerFeature
 testConditionalBehaviour
 testVersionFeature
 testTimeFeature
+testCheckPathFeature
 testConfigurationFileFeature
 testPidFileFeature
 testLinesFeature

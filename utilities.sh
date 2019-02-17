@@ -28,7 +28,7 @@
 ## Global configuration
 # Cf. http://www.gnu.org/software/bash/manual/bashref.html#The-Shopt-Builtin
 # Ensures respect to quoted arguments to the conditional command's =~ operator.
-shopt -s compat31
+#shopt -s compat31
 
 # Used variables MUST be initialized.
 set -o nounset
@@ -37,7 +37,7 @@ set -o errtrace
 
 # Dumps function call in case of error, or when exiting with something else than status 0.
 trap '_status=$?; dumpFuncCall $_status' ERR
-trap '_status=$?; [ $_status -ne 0 ] && dumpFuncCall $_status' EXIT
+#trap '_status=$?; [ $_status -ne 0 ] && dumpFuncCall $_status' EXIT
 
 #########################
 ## Constants
@@ -134,7 +134,7 @@ LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-}
 # usage: dumpFuncCall <exit status>
 function dumpFuncCall() {
   # Defines count of function names.
-  local _exitStatus="${1:-?}" _funcNameCount=${#FUNCNAME[@]}
+  local _exitStatus="${1:-?}" _funcNameCount="${#FUNCNAME[@]}"
 
   # Ignores following exit status:
   #  ERROR_USAGE: used in usage method (error will have already been shown)
@@ -152,17 +152,18 @@ function dumpFuncCall() {
   # Ignores the call if the system is currently in _doWriteMessage, in which
   #  case the exit status has been "manually" executed after error message shown.
   [ "${FUNCNAME[1]}" = "_doWriteMessage" ] && return 0
+  [ "${FUNCNAME[1]}" = "errorMessage" ] && return 0
 
   # Prepares message begin.
-  message="Status $_exitStatus at "
+  message="Script failure with status $_exitStatus, stacktrace:\n"
 
   # Disables call when it corresponds to the warning exit status of a previous call to this function.
   [ "$_funcNameCount" -le 2 ] && warning "$message${FUNCNAME[1]}:${BASH_LINENO[1]}" && return 0
 
   # Starts to 1 to avoid THIS function name, and stops before the last one to avoid "main".
-  for index in $( eval echo "{$((_funcNameCount-2))..1}" ); do
-    [ "$index" -lt $((_funcNameCount-2)) ] && message="$message->"
-    message="$message${BASH_SOURCE[$index]}#${FUNCNAME[$index]}:${BASH_LINENO[$index]}"
+  for index in $( eval echo "{1..$((_funcNameCount-2))}" ); do
+    [ "$index" -ge 2 ] && message="$message\n"
+    message="$message at ${BASH_SOURCE[$index]}:${BASH_LINENO[$index]}\tcalled\t#${FUNCNAME[$index]}"
   done
 
   warning "$message"

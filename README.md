@@ -4,12 +4,16 @@ This is a free common utilities/tool-box for GNU/Bash scripts, you can use for y
 
 It provides lots of features, using mainly GNU/Bash built-in tools, like:
  - logger (writeMessage, info, warning, error), with timestamp and category
- - configuration file management (local configuration file, global configuration file, check and set configuration)
+ - environment check and utilities (locale, isRoot, LSB)
  - path check and management (data file, directory, executable)
+ - configuration file management (local configuration file, global configuration file, check and set configuration)
+ - version check (isVersionGreater)
+ - start/stop/up time
  - pattern matching (including isNumber, isDate ...)
  - extract lines from a file (from N, or between N and P)
- - daemon start/pause/stop, with PID file management
- - start/stop/up time
+ - PID file management
+ - daemon start/pause/stop
+ - Third party PATH management feature (Java, Ant ...)
 
 Context
 --

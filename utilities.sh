@@ -41,12 +41,12 @@ trap '_status=$?; [ $_status -ne 0 ] && dumpFuncCall $_status' EXIT
 
 #########################
 ## Constants
-declare -r DEFAULT_ROOT_DIR="${DEFAULT_ROOT_DIR:-${HOME:-/home/$( whoami )}}"
-declare -r DEFAULT_TMP_DIR="${TMP_DIR:-/tmp/$( printf "%(%Y-%m-%d-%H-%M-%S)T" -1 )-$( basename "$0" )}"
+launchedScriptName="$( basename "$0" )"
+declare -r DEFAULT_ROOT_DIR="${DEFAULT_ROOT_DIR:-${HOME:-/home/$( whoami )}/$launchedScriptName}"
+declare -r DEFAULT_TMP_DIR="${TMP_DIR:-/tmp/$( printf "%(%Y-%m-%d-%H-%M-%S)T" -1 )-$launchedScriptName}"
 declare -r DEFAULT_LOG_FILE="${DEFAULT_LOG_FILE:-$DEFAULT_TMP_DIR/logFile.log}"
 declare -r DEFAULT_TIME_FILE="$DEFAULT_TMP_DIR/timeFile"
 
-launchedScriptName="$( basename "$0" )"
 declare -r DEFAULT_CONFIG_FILE="$DEFAULT_ROOT_DIR/.config/$launchedScriptName.conf"
 declare -r DEFAULT_GLOBAL_CONFIG_FILE="/etc/$launchedScriptName.conf"
 declare -r DEFAULT_PID_DIR="$DEFAULT_TMP_DIR/_pids"
@@ -691,13 +691,13 @@ function checkAvailableValue() {
 # usage: isAbsolutePath <path>
 # "true" if the path begins with "/"
 function isAbsolutePath() {
-  [[ "$1" =~ ^\/.*$ ]]
+  [[ "$1" =~ ^/.*$ ]]
 }
 
-# usage: isSimplePath <path>
+# usage: isRelativePath <path>
 # "true" if there is NO "/" character (and so the tool should be in PATH)
-function isSimplePath() {
-  [[ "$1" =~ ^[^\/]*$ ]]
+function isRelativePath() {
+  [[ "$1" =~ ^[^/]*$ ]]
 }
 
 # usage: buildCompletePath <path> [<path to prepend> <force prepend>]
@@ -718,7 +718,7 @@ function buildCompletePath() {
   isAbsolutePath "$_path" && echo "$_path" && return 0
 
   # Checks if it is a "simple" path.
-  isSimplePath "$_path" && [ "$_forcePrepend" -eq 0 ] && echo "$_path" && return 0
+  isRelativePath "$_path" && [ "$_forcePrepend" -eq 0 ] && echo "$_path" && return 0
 
   # Prefixes with install directory path.
   echo "$_pathToPreprend/$_path"
@@ -795,7 +795,7 @@ function checkAndSetConfig() {
   _value=$( getConfigValue "$_configKey" )
   valueGetStatus=$?
   if [ $valueGetStatus -ne 0 ]; then
-    # Prints error message is any.
+    # Prints error message if any.
     [ -n "$_value" ] && echo -e "$_value" |tee -a "$LOG_FILE"
     # If NOT in 'MODE_CHECK_CONFIG_AND_QUIT' mode, it is a fatal error, so exists.
     [ "$MODE_CHECK_CONFIG_AND_QUIT" -eq 0 ] && exit $valueGetStatus
@@ -838,21 +838,20 @@ function checkAndSetConfig() {
   return 0
 }
 
-# usage: checkAndFormatPath <paths>
-# ALL paths must be specified if a single parameter.
+# usage: checkAndFormatPath <paths> [<path to prepend>]
+# ALL paths must be specified if a single parameter, separated by colon ':'.
 function checkAndFormatPath() {
-  local _paths="$1"
+  local _paths="$1" _pathToPreprend="${2:-${ROOT_DIR:-$DEFAULT_ROOT_DIR}}"
 
   formattedPath=""
   for pathToCheckRaw in $( echo "$_paths" |sed -e 's/[ ]/€/g;s/:/ /g;' ); do
     pathToCheck=$( echo "$pathToCheckRaw" |sed -e 's/€/ /g;' )
 
     # Defines the completes path, according to absolute/relative path.
-    completePath="$pathToCheck"
-    ! isAbsolutePath "$pathToCheck" && completePath="${ROOT_DIR:-$DEFAULT_ROOT_DIR}/$pathToCheck"
+    completePath=$( buildCompletePath "$pathToCheck" "$_pathToPreprend" 1 )
 
     # Uses "ls" to complete the path in case there is wildcard.
-    if [ "$( echo "$completePath" |grep -c "*" )" -eq 1 ]; then
+    if [[ "$completePath" =~ ^.*[*].*$ ]]; then
       formattedWildcard=$( echo "$completePath" |sed -e 's/^/"/;s/$/"/;s/*/"*"/g;s/""$//;' )
       completePath="$( ls -d "$( eval echo "$formattedWildcard" )" 2>/dev/null )" || echo -e "\E[31mNOT FOUND\E[0m" |tee -a "$LOG_FILE"
     fi
@@ -864,7 +863,8 @@ function checkAndFormatPath() {
     fi
 
     # In any case, updates the formatted path list.
-    formattedPath=$formattedPath:$completePath
+    [ -n "$formattedPath" ] && formattedPath=$formattedPath:
+    formattedPath=$formattedPath$completePath
   done
   echo "$formattedPath"
 }

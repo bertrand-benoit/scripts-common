@@ -741,7 +741,7 @@ function isRunningProcess() {
   _processName="$( basename "$2" )" # Removes the path which can be different between each action
 
   # Checks if PID file exists, otherwise regard process as NOT running.
-  [ ! -f "$_pidFile" ] && errorMessage "PID file '$_pidFile' not found." -1 && return $ERROR_PID_FILE
+  [ ! -f "$_pidFile" ] && info "PID file '$_pidFile' does not exist (anymore). System will consider process '$_processName' as NOT running." && return 1
 
   # Extracts the PID.
   pidToCheck=$( getPIDFromFile "$_pidFile" ) || return 1
@@ -783,11 +783,14 @@ function checkAllProcessFromPIDFiles() {
 #########################
 ## Functions - Daemon star/stop/isRunning Feature
 
-# usage: startProcess <pid file> <process name>
+# usage: startProcess <pid file> <process name> <options>
+# options MUST be an array containing any count of elements
 function startProcess() {
   local _pidFile="$1"
   shift
   local _processName="$1"
+  shift
+  local _options=("$@")
 
   ## Writes the PID file.
   writePIDFile "$_pidFile" "$_processName" || return 1
@@ -796,14 +799,17 @@ function startProcess() {
   [ -z "$LOG_CONSOLE_OFF" ] && export LOG_CONSOLE_OFF=1
 
   ## Executes the specified command -> such a way the command WILL have the PID written in the file.
-  info "Starting background command: $*"
-  exec $*
+  info "Starting background command: $_processName ${_options[*]}"
+  exec "$_processName" "${_options[@]}"
 }
 
 # usage: stopProcess <pid file> <process name>
 function stopProcess() {
   local _pidFile="$1"
   local _processName="$2"
+
+  # Safe-guard: ensures PID file exists.
+  [ ! -f "$_pidFile" ] && info "PID file '$_pidFile' does not exist. Nothing more to do, to stop process '$_processName'." && return 0
 
   # Gets the PID.
   pidToStop=$( getPIDFromFile "$_pidFile" ) || errorMessage "No PID found in file '$_pidFile'."
@@ -829,7 +835,7 @@ function stopProcess() {
 }
 
 # usage: killChildProcesses <pid> [1]
-# 1: toggle defining is it the top hierarchy process.
+# 1: toggle defining it is the top hierarchy process.
 function killChildProcesses() {
   local _pid=$1 _topProcess=${2:-0}
 
@@ -855,22 +861,28 @@ function setUpKillChildTrap() {
   trap 'writeMessage "Killing all processes of the group of main process $TRAP_processName"; killChildProcesses $$ 1; exit 0' EXIT
 }
 
-# usage: manageDaemon <action> <name> <pid file> <process> [<logFile> <outputFile> <options>]
+# usage: manageDaemon <action> <name> <pid file> <process> [<logFile> <outputFile> [<options>]]
 #   action can be: start, status, stop (and daemon, only for internal purposes)
-#   logFile, outputFile and options are only needed if action is "start"
+#   logFile, outputFile are only needed if action is "start"
+#   options (which MUST be an array containing any count of elements) is only needed if action is "daemon"
 function manageDaemon() {
   local _action="$1" _name="$2" _pidFile="$3" _processName="$4"
-  local _logFile="$5" _outputFile="$6" _options="$7"
+  local _logFile="$5" _outputFile="$6"
 
   case "$_action" in
     daemon)
+      # Reads all optional remaining parameters as an options array.
+      shift 6
+      _options=("$@")
+
       # If the option is NOT the special one which activates last action "run"; setups trap ensuring
       # children process will be stopped in same time this main process is stopped, otherwise it will
       # setup when managing the run action.
-      [[ "$_options" != "$DAEMON_SPECIAL_RUN_ACTION" ]] && setUpKillChildTrap "$_processName"
+      [[ "${_options[@]}" != "$DAEMON_SPECIAL_RUN_ACTION" ]] && setUpKillChildTrap "$_processName"
 
       # Starts the process.
-      startProcess "$_pidFile" "$_processName" $_options
+      # N.B.: here we WANT word splitting on $_options, so we don't put quotes.
+      startProcess "$_pidFile" "$_processName" "${_options[@]}"
     ;;
 
     start)
@@ -887,7 +899,7 @@ function manageDaemon() {
     ;;
 
     stop)
-      # Ensures it is running.
+      # Checks if it is running.
       ! isRunningProcess "$_pidFile" "$_processName" && writeMessage "$_name is NOT running." && return 0
 
       # Stops the process.

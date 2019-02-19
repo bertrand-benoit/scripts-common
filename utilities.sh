@@ -764,19 +764,21 @@ function isRunningProcess() {
   return 1
 }
 
-# usage: checkAllPIDFiles
+# usage: checkAllPIDFiles [<pid directory>]
 # Checks all existing PID files, checks if corresponding process are still running,
 #  and deletes PID files if it is not the case.
 function checkAllProcessFromPIDFiles() {
-  info "Check any existing PID file (and clean if corresponding process is no more running)."
+  local _pidDir="${1:-${PID_DIR:-$DEFAULT_PID_DIR}}"
+
+  info "Check any existing PID file in '$_pidDir' (and clean if corresponding process is no more running)."
   # For any existing PID file.
-  for pidFile in $( find "${PID_DIR:-$DEFAULT_PID_DIR}" -type f ); do
+  while IFS= read -r -d '' pidFile; do
     processName=$( getProcessNameFromFile "$pidFile" )
 
     # Checks if there is still a process with this name and this PID,
     #  if it is not the case, the PID file will be removed.
     isRunningProcess "$pidFile" "$processName"
-  done
+  done < <(find "$_pidDir" -type f -iname "*.pid" -print0)
 }
 
 
@@ -837,14 +839,14 @@ function stopProcess() {
 # usage: killChildProcesses <pid> [1]
 # 1: toggle defining it is the top hierarchy process.
 function killChildProcesses() {
-  local _pid=$1 _topProcess=${2:-0}
+  local _pid="$1" _topProcess="${2:-0}"
 
   # Manages PID of each child process of THIS process.
-  for childProcessPid in $( ps -o pid --no-headers --ppid "$_pid" ); do
+  while IFS='' read -r -d '' childProcessPid; do
     # Ensures the child process still exists; it won't be the case of the last launched ps allowing to
     #  get child process ...
-    $( ps -p "$childProcessPid" --no-headers >/dev/null ) && killChildProcesses "$childProcessPid"
-  done
+    ps -p "$childProcessPid" --no-headers >/dev/null && killChildProcesses "$childProcessPid"
+  done < <(ps -o pid --no-headers --ppid "$_pid")
 
   # Kills the child process if not main one.
   [ "$_topProcess" -eq 0 ] && kill -s HUP "$_pid"

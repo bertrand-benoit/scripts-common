@@ -197,8 +197,8 @@ function checkLSB() {
   source "$lsbFunctions"
 }
 
-# usage: checkOSLocale
-function checkOSLocale() {
+# usage: checkLocale
+function checkLocale() {
   [ "$MODE_CHECK_CONFIG_AND_QUIT" -eq 0 ] && info "Checking LANG environment variable ... "
 
   # Checks LANG is defined with UTF-8.
@@ -207,14 +207,16 @@ function checkOSLocale() {
       warning "You must update your LANG environment variable to use the UTF-8 charmaps ('${LANG:-NONE}' detected). Until then system will attempt using en_US.UTF-8."
 
       export LANG="en_US.UTF-8"
+      return $ERROR_ENVIRONMENT
   fi
 
   # Ensures defined LANG is avaulable on the OS.
-  if [ "$( locale -a 2>/dev/null |grep -ci $LANG )" -eq 0 ] && [ "$( locale -a 2>/dev/null |grep -c "$( echo $LANG |sed -e 's/UTF[-]*8/utf8/' )" )" -eq 0 ]; then
+  if [ "$( locale -a 2>/dev/null |grep -ci $LANG )" -eq 0 ] && [ "$( locale -a 2>/dev/null |grep -c "${LANG//UTF[-]*8/utf8}" )" -eq 0 ]; then
     # It is a fatal error but in 'MODE_CHECK_CONFIG_AND_QUIT' mode.
     warning "Although the current OS locale '$LANG' defines to use the UTF-8 charmaps, it is not available (checked with 'locale -a'). You must install it or update your LANG environment variable. Until then system will attempt using en_US.UTF-8."
 
     export LANG="en_US.UTF-8"
+    return $ERROR_ENVIRONMENT
   fi
 
   return 0

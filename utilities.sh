@@ -405,10 +405,7 @@ function buildCompletePath() {
   _path="$( pruneSlash "$1" )"
 
   # Replaces potential '~' character.
-  if [[ "$_path" =~ ^~.*$ ]]; then
-    homeForSed=$( echo "$( pruneSlash "$HOME" )" |sed -e 's/\//\\\//g;' )
-    _path=$( echo "$_path" |sed -e "s/^~/$homeForSed/" )
-  fi
+  [[ "$_path" =~ ^~.*$ ]] && _path="${_path//\~/$HOME}"
 
   # Checks if it is an absolute path.
   isAbsolutePath "$_path" && echo "$_path" && return 0
@@ -426,16 +423,14 @@ function checkAndFormatPath() {
   local _paths="$1" _pathToPreprend="${2:-${ROOT_DIR:-$DEFAULT_ROOT_DIR}}"
 
   formattedPath=""
-  for pathToCheckRaw in $( echo "$_paths" |sed -e 's/[ ]/€/g;s/:/ /g;' ); do
-    pathToCheck=$( echo "$pathToCheckRaw" |sed -e 's/€/ /g;' )
-
+  while IFS= read -r -d ':' pathToCheck; do
     # Defines the completes path, according to absolute/relative path.
     completePath=$( buildCompletePath "$pathToCheck" "$_pathToPreprend" 1 )
 
     # Uses "ls" to complete the path in case there is wildcard.
     if [[ "$completePath" =~ ^.*[*].*$ ]]; then
       formattedWildcard=$( echo "$completePath" |sed -e 's/^/"/;s/$/"/;s/*/"*"/g;s/""$//;' )
-      completePath="$( ls -d "$( eval echo "$formattedWildcard" )" 2>/dev/null )" || echo -e "\E[31mNOT FOUND\E[0m" |tee -a "$LOG_FILE"
+      completePath="$( ls -d "$( eval echo "$formattedWildcard" )" 2>/dev/null )" || writeNotFound
     fi
 
     # Checks if it exists, if 'MODE_CHECK_CONFIG_AND_QUIT' mode.
@@ -451,7 +446,7 @@ function checkAndFormatPath() {
     # In any case, updates the formatted path list.
     [ -n "$formattedPath" ] && formattedPath=$formattedPath:
     formattedPath=$formattedPath$completePath
-  done
+  done <<< "$_paths:" # N.B.: adds an extra ':' to ensure last path element is read and manage.
   echo "$formattedPath"
 }
 

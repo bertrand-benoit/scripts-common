@@ -181,7 +181,11 @@ function testCheckPathFeature() {
   MODE_CHECK_CONFIG_AND_QUIT=1
 
   # Limit tests, on not existing files.
+  writeMessage "Checking NOT existing directory, is empty (should answer NO)."
+  isEmptyDirectory "$_checkPathRootDir" && testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
+
   updateStructure "$_checkPathRootDir" || testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
+
   writeMessage "Checking NOT existing Data file."
   checkDataFile "$_checkPathRootDir/$_dataFileName" && testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
 
@@ -195,6 +199,9 @@ function testCheckPathFeature() {
   touch "$_checkPathRootDir/$_dataFileName" "$_checkPathRootDir/$_binFileName" || testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
   chmod +x "$_checkPathRootDir/$_binFileName" || testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
   updateStructure "$_checkPathRootDir/$_subPathDir" || testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
+
+  writeMessage "Checking existing directory is empty."
+  isEmptyDirectory "$_checkPathRootDir/$_subPathDir" || testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
 
   writeMessage "Checking existing Data file."
   checkDataFile "$_checkPathRootDir/$_dataFileName" || testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
@@ -229,8 +236,8 @@ function testCheckPathFeature() {
   writeMessage "Checking buildCompletePath function, for ~ substitution with HOME environment variable."
   assertValue "$( buildCompletePath "~/$_homeRelativePath" )" "$HOME/$_homeRelativePath" || testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
 
-    # Very important to switch off this mode to keep on testing others features.
-    MODE_CHECK_CONFIG_AND_QUIT=0
+  # Very important to switch off this mode to keep on testing others features.
+  MODE_CHECK_CONFIG_AND_QUIT=0
 
   # checkAndFormatPath Tests.
   writeMessage "Checking checkAndFormatPath function."

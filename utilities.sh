@@ -263,12 +263,24 @@ function _doWriteMessage() {
 }
 
 # usage: writeOK
-# Utility method aiming only to print "OK", in accordance with configuration.
+# Utility method aiming only to print "OK", in accordance with logging configuration.
 function writeOK() {
   if [ "$LOG_CONSOLE_OFF" -eq 0 ]; then
     printf "OK\n" |tee -a "$LOG_FILE"
   else
     printf "OK\n" >> "$LOG_FILE"
+  fi
+}
+
+# usage: writeNotFound [<element>]
+# Utility method aiming only to print "NOT FOUND", in red, in accordance with logging configuration.
+function writeNotFound() {
+  local _element="${1:-}"
+
+  if [ "$LOG_CONSOLE_OFF" -eq 0 ]; then
+    printf "'%b' \E[31mNOT FOUND\E[0m\n" "$_element" |tee -a "$LOG_FILE"
+  else
+    printf "'%b' \E[31mNOT FOUND\E[0m\n" "$_element" >> "$LOG_FILE"
   fi
 }
 
@@ -427,7 +439,11 @@ function checkAndFormatPath() {
     # Checks if it exists, if 'MODE_CHECK_CONFIG_AND_QUIT' mode.
     if [ "$MODE_CHECK_CONFIG_AND_QUIT" -eq 1 ]; then
       writeMessageSL "Checking path '$pathToCheck' ... "
-      [ -d "$completePath" ] && writeOK || echo -e "\E[31mNOT FOUND\E[0m" |tee -a "$LOG_FILE"
+      if [ -d "$completePath" ]; then
+        writeOK
+      else
+        writeNotFound
+      fi
     fi
 
     # In any case, updates the formatted path list.
@@ -448,7 +464,7 @@ function checkConfigValue() {
   #  and 'global' configuration file does not exists for only-standard user installation.
   if [ ! -f "$_configFile" ]; then
     # IMPORTANT: be careful not to print something in the standard output or it would break the checkAndSetConfig feature.
-    [ "$DEBUG_UTILITIES" -eq 1 ] && printf "Configuration file '$_configFile' not found ... " >&2
+    [ "$DEBUG_UTILITIES" -eq 1 ] && printf "Configuration file '%b' not found ... " "$_configFile" >&2
     return 1
   fi
   [ "$( grep -ce "^$_configKey=" "$_configFile" 2>/dev/null )" -gt 0 ]
@@ -466,7 +482,7 @@ function getConfigValue() {
     if ! checkConfigValue "$configFileToRead" "$_configKey"; then
       # Prints error message (and exit) only if NOT in "check config and quit" mode.
       [ "$MODE_CHECK_CONFIG_AND_QUIT" -eq 0 ] && errorMessage "Configuration key '$_configKey' NOT found in any of configuration files" $ERROR_CONFIG_VARIOUS
-      printf "configuration key '$_configKey' \E[31mNOT FOUND\E[0m in any of configuration files" && return $ERROR_CONFIG_VARIOUS
+      printf "configuration key '%b' \E[31mNOT FOUND\E[0m in any of configuration files" "$_configKey" && return $ERROR_CONFIG_VARIOUS
     fi
   fi
 
@@ -499,7 +515,11 @@ function checkAndSetConfig() {
   # Informs about config key to check, according to situation:
   #  - in 'normal' mode, message is only shown in VERBOSE mode
   #  - in 'MODE_CHECK_CONFIG_AND_QUIT' mode, message is always shown
-  [ "$MODE_CHECK_CONFIG_AND_QUIT" -eq 0 ] && info "$_message" || writeMessageSL "$_message"
+  if [ "$MODE_CHECK_CONFIG_AND_QUIT" -eq 0 ]; then
+    info "$_message"
+  else
+    writeMessageSL "$_message"
+  fi
 
   # Gets the value, according to the type of config.
   _value=$( getConfigValue "$_configKey" )
@@ -536,7 +556,7 @@ function checkAndSetConfig() {
     # If NOT in 'MODE_CHECK_CONFIG_AND_QUIT' mode, it is a fatal error, so exits.
     [ "$MODE_CHECK_CONFIG_AND_QUIT" -eq 0 ] && exit $checkPathStatus
     # Otherwise, show an error message, and simply returns an error status.
-    echo -e "'$_value' \E[31mNOT FOUND\E[0m" |tee -a "$LOG_FILE"
+    writeNotFound "$_value"
     return $checkPathStatus
   fi
 
@@ -897,7 +917,11 @@ function manageDaemon() {
     ;;
 
     status)
-      isRunningProcess "$_pidFile" "$_processName" && writeMessage "$_name is running." || writeMessage "$_name is stopped."
+      if isRunningProcess "$_pidFile" "$_processName"; then
+        writeMessage "$_name is running."
+      else
+        writeMessage "$_name is stopped."
+      fi
     ;;
 
     stop)

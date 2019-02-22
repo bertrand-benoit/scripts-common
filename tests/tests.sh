@@ -61,7 +61,7 @@ function testLoggerFeature() {
 }
 
 # Robustness Tests.
-function testRobustness() {
+function testLoggerRobustness() {
   local _logLevel _message _sameLine _exitStatus
 
   enteringTests "robustness"
@@ -88,6 +88,39 @@ function testRobustness() {
  _doWriteMessage "$_logLevel" "$_message" "$_newLine" "Bad value"
 
   exitingTests "robustness"
+}
+
+# Environment check feature Tests.
+function testEnvironmentCheckFeature() {
+  local _failureErrorMessage="Environment check feature is broken"
+
+  enteringTests "envCheck"
+
+  writeMessageSL "Checking if user is root ... "
+  isRootUser && echo "YES" || echo "NO"
+
+  writeMessageSL "Checking if GNU which is installed ... "
+  checkGNUWhich && echo "YES" || echo "NO"
+
+  writeMessage "Checking environment ... "
+  checkEnvironment
+
+  writeMessage "Checking LSB ... "
+  checkLSB
+
+  writeMessage "Checking Locale with no utf-8 LANG ... this must produce a WARNING."
+  LANG=en_GB checkLocale && testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
+
+  writeMessage "Checking Locale with not installed/existing utf-8 LANG ... this must produce a WARNING."
+  LANG=zz_ZZ.UTF-8 checkLocale && testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
+
+  writeMessage "Checking Locale with a good LANG defined to en_GB.UTF-8."
+  LANG=en_GB.UTF-8 checkLocale || testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
+
+  writeMessage "Checking Locale with a good LANG defined to en_GB.utf8."
+  LANG=en_GB.utf8 checkLocale || testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
+
+  exitingTests "envCheck"
 }
 
 # Conditional Tests.
@@ -309,8 +342,9 @@ function testPidFileFeature() {
 }
 
 ## Run tests.
-testRobustness
 testLoggerFeature
+testLoggerRobustness
+testEnvironmentCheckFeature
 testConditionalBehaviour
 testVersionFeature
 testTimeFeature

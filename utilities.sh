@@ -773,7 +773,7 @@ function isRunningProcess() {
 
   # Checks if a process with specified PID is running.
   info "Checking running process, PID=$pidToCheck, process=$_processName."
-  [ "$( ps h -p "$pidToCheck" |grep -cE "$_processName($|[ \t])" )" -eq 1 ] && return 0
+  [ "$( pgrep "$_processName" |grep -wc "$pidToCheck" )" -eq 1 ] && return 0
 
   # It is not the case, informs and deletes the PID file.
   deletePIDFile "$_pidFile"

@@ -330,7 +330,8 @@ function updateStructure() {
 # usage: isEmptyDirectory <path>
 function isEmptyDirectory()
 {
-  [ "$( ls -1 "$1" |wc -l )" -eq 0 ]
+  local _dir="${1:-}"
+  [[ -n "$_dir" && -d "$_dir" && "$( find "$_dir" -maxdepth 0 -empty 2>/dev/null|wc -l )" -eq 1 ]]
 }
 
 # usage: pruneSlash <path>

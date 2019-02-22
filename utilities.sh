@@ -606,13 +606,13 @@ function isVersionGreater() {
   [[ "$1" == "$2" ]] && return 1
 
   # Defines arrays with specified versions.
-  local _v1Array=( ${1//./ } )
-  local _v2Array=( ${2//./ } )
+  IFS='.' read -ra _v1Array <<< "$1"
+  IFS='.' read -ra _v2Array <<< "$2"
 
   # Lookups version element until they are not the same.
   index=0
   while [ "${_v1Array[$index]}" -eq "${_v2Array[$index]}" ]; do
-    let index++
+    (( index++ ))
 
     # Ensures there is another element for each version.
     [ -z "${_v1Array[$index]:-}" ] && v1End=1 || v1End=0
@@ -843,7 +843,7 @@ function stopProcess() {
   while [ $remainingTime -gt 0 ] && isRunningProcess "$_pidFile" "$_processName"; do
     # Waits 1 second.
     sleep 1
-    let remainingTime--
+    (( remainingTime-- ))
   done
 
   # Checks if it is still running, otherwise deletes the PID file ands returns.
@@ -898,7 +898,7 @@ function manageDaemon() {
       # If the option is NOT the special one which activates last action "run"; setups trap ensuring
       # children process will be stopped in same time this main process is stopped, otherwise it will
       # setup when managing the run action.
-      [[ "${_options[@]}" != "$DAEMON_SPECIAL_RUN_ACTION" ]] && setUpKillChildTrap "$_processName"
+      [[ "${_options[*]}" != "$DAEMON_SPECIAL_RUN_ACTION" ]] && setUpKillChildTrap "$_processName"
 
       # Starts the process.
       # N.B.: here we WANT word splitting on $_options, so we don't put quotes.

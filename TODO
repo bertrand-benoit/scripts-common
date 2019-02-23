@@ -1,0 +1,15 @@
+
+Improvements:
+ * getVersion: factorize sed instructions
+
+
+Tests to be completed:
+ * getLastLinesFromN
+ * getLinesFromNToP
+
+
+Tests implementation:
+ * matchesOneOf
+ * extractI18Nelement
+ * getURLContents
+ ...

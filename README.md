@@ -1,14 +1,19 @@
-scripts-common v2.0
+scripts-common version 2.0
 ====
 This is a free common utilities/tool-box for GNU/Bash scripts, you can use for your own scripts.
 
 It provides lots of features, using mainly GNU/Bash built-in tools, like:
  - logger (writeMessage, info, warning, error), with timestamp and category
- - configuration file management (local configuration file, global configuration file, check and set configuration)
+ - environment check and utilities (locale, isRoot, LSB)
  - path check and management (data file, directory, executable)
- - pattern matching (including isNumber, isDate ...)
- - daemon start/pause/stop, with PID file management
+ - configuration file management (local configuration file, global configuration file, check and set configuration)
+ - version check (isVersionGreater)
  - start/stop/up time
+ - pattern matching (including isNumber, isDate ...)
+ - extract lines from a file (from N, or between N and P)
+ - PID file management
+ - daemon start/pause/stop
+ - Third party PATH management feature (Java, Ant ...)
 
 Context
 --
@@ -71,7 +76,7 @@ There are some optional variables you can define before sourcing the `utilities.
  * **LOG_CONSOLE_OFF**              `0|1`  disable message output on console
  * **LOG_FILE**                   `<path>` path of the log file
  * **LOG_FILE_APPEND_MODE**         `0|1`  activate append mode, instead of override one
- * **MODE_CHECK_CONFIG_AND_QUIT**   `0|1`  check ALL configuration and then quit (useful to check all the configuration you want, +/- like a dry run)
+ * **MODE_CHECK_CONFIG**   `0|1`  check ALL configuration and then quit (useful to check all the configuration you want, +/- like a dry run)
 
 
 N.B.: when using `checkAndSetConfig` function, you can get back the corresponding configuration in **LAST_READ_CONFIG** variable (if it has NOT been found, it is set to *$CONFIG_NOT_FOUND*).

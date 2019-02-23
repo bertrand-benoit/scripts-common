@@ -9,17 +9,7 @@ Tests to be completed:
 
 
 Tests implementation:
- * checkGNUWhich
- * checkEnvironment
- * checkLSB
- * isEmptyDirectory
  * matchesOneOf
  * extractI18Nelement
- * checkOSLocale
  * getURLContents
  ...
-
-
-
-Rename MODE_CHECK_CONFIG_AND_QUIT to MODE_CHECK_CONFIG
-Replace all kind of echo -e "\E[31mNOT FOUND\E[0m" |tee -a "$LOG_FILE"   by method like writeOK ...

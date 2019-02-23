@@ -53,6 +53,8 @@ declare -r DEFAULT_PID_DIR="$DEFAULT_TMP_DIR/_pids"
 
 mkdir -p "$DEFAULT_PID_DIR"
 
+declare -r LSB_INIT_FUNCTONS="/lib/lsb/init-functions"
+
 # Log Levels.
 declare -r LOG_LEVEL_INFO=1
 declare -r LOG_LEVEL_MESSAGE=2
@@ -197,9 +199,8 @@ function checkEnvironment() {
 
 # usage: checkLSB
 function checkLSB() {
-  lsbFunctions="/lib/lsb/init-functions"
-  [ -f "$lsbFunctions" ] || errorMessage "Unable to find LSB file $lsbFunctions. Please install it." $ERROR_ENVIRONMENT
-  source "$lsbFunctions"
+  [ -f "$LSB_INIT_FUNCTONS" ] || errorMessage "Unable to find LSB file $LSB_INIT_FUNCTONS. Please install it." $ERROR_ENVIRONMENT
+  source "$LSB_INIT_FUNCTONS"
 }
 
 # usage: checkLocale

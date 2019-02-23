@@ -187,7 +187,7 @@ function isRootUser() {
 # usage: checkGNUWhich
 # Ensures "which" is a GNU which.
 function checkGNUWhich() {
-  [ "$( LANG=C which --version 2>&1|head -n 1 |grep -cw "GNU" )" -eq 1 ]
+  [ "$( LANG=C command which --version 2>&1|head -n 1 |grep -cw "GNU" )" -eq 1 ]
 }
 
 # usage: checkEnvironment
@@ -376,14 +376,16 @@ function checkPath() {
 
 # usage: checkBin <binary name/path>
 function checkBin() {
+  local _binary="$1"
+
   # Informs only if not in 'MODE_CHECK_CONFIG' mode.
   ! isCheckModeConfigOnly && info "Checking binary '$1' ... "
 
   # Checks if the binary is available.
-  which "$1" >/dev/null 2>&1 && return 0
+  command -v "$_binary" >/dev/null 2>&1 && return 0
 
   # It is not the case, if NOT in 'MODE_CHECK_CONFIG' mode, it is a fatal error.
-  ! isCheckModeConfigOnly && errorMessage "Unable to find binary '$1'." $ERROR_CHECK_BIN
+  ! isCheckModeConfigOnly && errorMessage "Unable to find binary '$_binary'." $ERROR_CHECK_BIN
   # Otherwise, simple returns an error code.
   return $ERROR_CHECK_BIN
 }
@@ -593,7 +595,11 @@ function getDetailedVersion() {
 
   # General version is given by the specified $_majorVersion.
   # Before all, trying to get precise version in case of source code version.
-  lastCommit=$( cd "$_installDir"; LANG=C git log -1 --abbrev-commit --date=short 2>&1 |grep -wE "commit|Date" |sed -e 's/Date:. / of/' |tr -d '\n' )
+  lastCommit=$( cd "$_installDir" >/dev/null 2>&1 || exit $ERROR_ENVIRONMENT; \
+                LANG=C git log -1 --abbrev-commit --date=short 2>&1 |grep -wE "commit|Date" |sed -e 's/Date:. / of/' |tr -d '\n' ) \
+              || return $ERROR_ENVIRONMENT
+
+  # Manages the commit Hash.
   [ -n "$lastCommit" ] && lastCommit=" ($lastCommit)"
 
   # Prints the general version and the potential precise version (will be empty if not defined).

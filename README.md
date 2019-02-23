@@ -76,7 +76,7 @@ There are some optional variables you can define before sourcing the `utilities.
  * **LOG_CONSOLE_OFF**              `0|1`  disable message output on console
  * **LOG_FILE**                   `<path>` path of the log file
  * **LOG_FILE_APPEND_MODE**         `0|1`  activate append mode, instead of override one
- * **MODE_CHECK_CONFIG_AND_QUIT**   `0|1`  check ALL configuration and then quit (useful to check all the configuration you want, +/- like a dry run)
+ * **MODE_CHECK_CONFIG**   `0|1`  check ALL configuration and then quit (useful to check all the configuration you want, +/- like a dry run)
 
 
 N.B.: when using `checkAndSetConfig` function, you can get back the corresponding configuration in **LAST_READ_CONFIG** variable (if it has NOT been found, it is set to *$CONFIG_NOT_FOUND*).

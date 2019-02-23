@@ -178,7 +178,7 @@ function testCheckPathFeature() {
   enteringTests "checkPath"
 
   # To avoid error when configuration key is not found, switch on this mode.
-  MODE_CHECK_CONFIG_AND_QUIT=1
+  MODE_CHECK_CONFIG=1
 
   # Limit tests, on not existing files.
   writeMessage "Checking NOT existing directory, is empty (should answer NO)."
@@ -237,7 +237,7 @@ function testCheckPathFeature() {
   assertValue "$( buildCompletePath "~/$_homeRelativePath" )" "$HOME/$_homeRelativePath" || testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
 
   # Very important to switch off this mode to keep on testing others features.
-  MODE_CHECK_CONFIG_AND_QUIT=0
+  MODE_CHECK_CONFIG=0
 
   # checkAndFormatPath Tests.
   writeMessage "Checking checkAndFormatPath function."
@@ -247,7 +247,7 @@ function testCheckPathFeature() {
   assertValue "$( checkAndFormatPath "$_pathsToFormatBefore" "$_checkPathRootDir" )" "$_pathsToFormatAfter" || testFail "$_failureErrorMessage" $ERROR_TEST_FAILURE
 
   # Very important to switch off this mode to keep on testing others features.
-  MODE_CHECK_CONFIG_AND_QUIT=0
+  MODE_CHECK_CONFIG=0
 
   exitingTests "checkPath"
 }
@@ -263,7 +263,7 @@ function testConfigurationFileFeature() {
   writeMessage "A configuration key '$CONFIG_NOT_FOUND' should happen."
 
   # To avoid error when configuration key is not found, switch on this mode.
-  MODE_CHECK_CONFIG_AND_QUIT=1
+  MODE_CHECK_CONFIG=1
 
   # No configuration file defined, it should not be found.
   checkAndSetConfig "$_configKey" "$CONFIG_TYPE_OPTION"
@@ -283,7 +283,7 @@ EOF
   assertValue "$LAST_READ_CONFIG" "$_configValue" || testFail "Configuration feature is broken" $ERROR_TEST_FAILURE
 
   # Very important to switch off this mode to keep on testing others features.
-  MODE_CHECK_CONFIG_AND_QUIT=0
+  MODE_CHECK_CONFIG=0
 
   exitingTests "config"
 }

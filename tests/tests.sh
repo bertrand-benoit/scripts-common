@@ -145,6 +145,9 @@ function testVersionFeature() {
   writeMessage "scripts-common Utilities version: $_version"
   writeMessage "scripts-common Utilities detailed version: $( getDetailedVersion "$_version" "$currentDir/.." )"
 
+  writeMessageSL "Checking getDetailedVersion on NOT existing directory"
+  getDetailedVersion "$_version" "$currentDir/NotExistingDirectory" && testFail "Version feature is broken" $ERROR_TEST_FAILURE
+
   writeMessage "Checking if $_version is greater than $_fakeVersion ... (should NOT be the case)"
   isVersionGreater "$_version" "$_fakeVersion" && testFail "Version feature is broken" $ERROR_TEST_FAILURE
 

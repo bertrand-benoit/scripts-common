@@ -103,7 +103,13 @@ declare -r ERROR_PID_FILE=120
 
 # Timeout (in seconds) when stopping process, before killing it.
 declare -r PROCESS_STOP_TIMEOUT=10
-declare -r DAEMON_SPECIAL_RUN_ACTION="-R"
+declare -r DAEMON_OPTION_RUN="-R"
+
+declare -r DAEMON_ACTION_START="start"
+declare -r DAEMON_ACTION_STATUS="status"
+declare -r DAEMON_ACTION_STOP="stop"
+declare -r DAEMON_ACTION_DAEMON="daemon"
+declare -r DAEMON_ACTION_RUN="run"
 
 #########################
 ## Global variables
@@ -727,7 +733,15 @@ function getURLContents() {
 # usage: writePIDFile <pid file> <process name>
 function writePIDFile() {
   local _pidFile="$1" _processName="$2"
-  [ -f "$_pidFile" ] && errorMessage "PID file '$_pidFile' already exists." -1 && return $ERROR_PID_FILE
+
+  # Safe-guard.
+  if [ -f "$_pidFile" ]; then
+    errorMessage "PID file '$_pidFile' already exists." -1
+    return $ERROR_PID_FILE
+  fi
+
+  ! updateStructure "$( dirname "$_pidFile" )" && errorMessage "Unable to create parent directory of PID file '$_pidFile'." $ERROR_ENVIRONMENT
+
   echo "processName=$_processName" > "$_pidFile"
   echo "pid=$$" >> "$_pidFile"
   info "Written PID '$$' of process '$_processName' in file '$1'."
@@ -902,7 +916,7 @@ function manageDaemon() {
   local _logFile="$5" _outputFile="$6"
 
   case "$_action" in
-    daemon)
+    $DAEMON_ACTION_DAEMON)
       # Reads all optional remaining parameters as an options array.
       shift 6
       _options=("$@")
@@ -910,14 +924,14 @@ function manageDaemon() {
       # If the option is NOT the special one which activates last action "run"; setups trap ensuring
       # children process will be stopped in same time this main process is stopped, otherwise it will
       # setup when managing the run action.
-      [[ "${_options[*]}" != "$DAEMON_SPECIAL_RUN_ACTION" ]] && setUpKillChildTrap "$_processName"
+      [[ "${_options[*]}" != "$DAEMON_OPTION_RUN" ]] && setUpKillChildTrap "$_processName"
 
       # Starts the process.
       # N.B.: here we WANT word splitting on $_options, so we don't put quotes.
       startProcess "$_pidFile" "$_processName" "${_options[@]}"
     ;;
 
-    start)
+    $DAEMON_ACTION_START)
       # Ensures it is not already running.
       isRunningProcess "$_pidFile" "$_processName" && writeMessage "$_name is already running." && return 0
 
@@ -926,15 +940,15 @@ function manageDaemon() {
       writeMessage "Launched $_name."
     ;;
 
-    status)
+    $DAEMON_ACTION_STATUS)
       if isRunningProcess "$_pidFile" "$_processName"; then
         writeMessage "$_name is running."
       else
-        writeMessage "$_name is stopped."
+        writeMessage "$_name is NOT running."
       fi
     ;;
 
-    stop)
+    $DAEMON_ACTION_STOP)
       # Checks if it is running.
       ! isRunningProcess "$_pidFile" "$_processName" && writeMessage "$_name is NOT running." && return 0
 
@@ -943,7 +957,7 @@ function manageDaemon() {
       writeMessage "Stopped $_name."
     ;;
 
-    run)
+    $DAEMON_ACTION_RUN)
       ## If LOG_CONSOLE_OFF is not already defined, messages must only be written in log file (no more on console).
       [ -z "$LOG_CONSOLE_OFF" ] && export LOG_CONSOLE_OFF=1
 

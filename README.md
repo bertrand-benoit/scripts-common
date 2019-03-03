@@ -16,7 +16,7 @@ It provides lots of features, using mainly GNU/Bash built-in tools, like:
 -   daemon start/pause/stop
 -   Third party PATH management feature (Java, Ant ...)
 
-### Context
+## Context
 Around 2000, I started writing it for my personal needs, creating lots of scripts at home and at work.
 
 In 2010, I created [Hemera Intelligent System](http://hemerais.bertrand-benoit.net/doc/index.php?title=Hemera:QuickStart) ([Github repository](https://github.com/bertrand-benoit/hemerais)), in which I factorized all my utilities, and developed more robust version.

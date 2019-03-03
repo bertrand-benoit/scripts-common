@@ -1,0 +1,93 @@
+VERSION 2.0.0 - current
+=============
+
+2019-03-03  Bertrand Benoit <contact@bertrand-benoit.net>
+
+ * usage of various third-party tools like Codacy (code quality), and CII Best Practices
+
+2019-02-23  Bertrand Benoit <contact@bertrand-benoit.net>
+
+ * usage of shellcheck to improve efficiency, robustness and compatibility
+
+2019-02-14  Bertrand Benoit <contact@bertrand-benoit.net>
+
+ * extraction from Hemera project to a new dedicated one
+
+VERSION 0.1.5
+=============
+
+2011-07-24  Bertrand Benoit <contact@bertrand-benoit.net>
+
+ * improved daemon process management
+
+2011-06-12  Bertrand Benoit <contact@bertrand-benoit.net>
+
+ * implemented new version of message management system (info, message, warning, error)
+
+2011-06-11  Bertrand Benoit <contact@bertrand-benoit.net>
+
+ * improved variables management (initialization is mandatory, and read-only variables/constants are defined as that).
+
+ * implemented powerful system allowing to "dump" function call stack in case of error (excluding some well known exit status), or when a script exits with an exit status different from 0
+
+ * improved log file management (no more double messages), and fixed some incomplete log files
+
+2011-05-29  Bertrand Benoit <contact@bertrand-benoit.net>
+
+ * added check on OS locale feature (must use UTF-8 charmaps, and it must be installed)
+
+2011-05-18  Bertrand Benoit <contact@bertrand-benoit.net>
+
+ * implemented powerful path management for PATH and LD_LIBRARY_PATH update (including support of '*' wilcard)
+
+2011-05-16  Bertrand Benoit <contact@bertrand-benoit.net>
+
+ * implemented version system (giving precise information if source code version)
+
+ * configuration file is now lookup in $HOME/.xxx by default, allowing any user to have specific configuration
+
+2011-05-11  Bertrand Benoit <contact@bertrand-benoit.net>
+
+ * implemented uptime functions
+
+VERSION 0.1.1
+=============
+
+2011-07-27  Bertrand Benoit <contact@bertrand-benoit.net>
+
+ * improved path management in some extrems situation (under Debian-like GNU/Linux distribution, when user launch script without having installed GNU version of 'which')
+
+VERSION 0.1.0
+=============
+
+2011-04-08  Bertrand Benoit <contact@bertrand-benoit.net>
+
+ * released version 0.1
+
+2010-10-15  Bertrand Benoit <contact@bertrand-benoit.net>
+
+ * improved system allowing to kill child processes (no more "broken pipe")
+
+2010-10-14  Bertrand Benoit <contact@bertrand-benoit.net>
+
+ * improved some global variables management (did not reset anymore if already set)
+
+2010-10-01  Bertrand Benoit <contact@bertrand-benoit.net>
+
+ * formalized error code status (constants definition, and use everywhere)
+
+2010-09-27  Bertrand Benoit <contact@bertrand-benoit.net>
+
+ * improved process/pid system
+
+ * implemented a system allowing to kill child processes when daemon is stopped
+
+2010-09-23  Bertrand Benoit <contact@bertrand-benoit.net>
+
+ * implemented a process/pid system allowing to start/status/stop daemon
+
+ * various improvements (functions updating environment, new configuration elements, new global variable)
+
+2010-08-12  Bertrand Benoit <contact@bertrand-benoit.net>
+
+ * created main project

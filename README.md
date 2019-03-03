@@ -1,9 +1,11 @@
-# scripts-common version 2.0
+# scripts-common version 2.0.0
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/f61fd4ae962a42dd93cca6de29ac8c1d)](https://www.codacy.com/app/bertrand-benoit/scripts-common?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=bertrand-benoit/scripts-common&amp;utm_campaign=Badge_Grade)
+[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/2583/badge)](https://bestpractices.coreinfrastructure.org/projects/2583)
 
 This is a free common utilities/tool-box for GNU/Bash scripts, you can use for your own scripts.
 
-It provides lots of features, using mainly GNU/Bash built-in tools, like:
+## Getting Started
+**scripts-common** provides lots of features, using mainly GNU/Bash built-in tools, like:
 -   logger (writeMessage, info, warning, error), with timestamp and category
 -   environment check and utilities (locale, isRoot, LSB)
 -   path check and management (data file, directory, executable)
@@ -70,7 +72,15 @@ There are some optional variables you can define before sourcing the `utilities.
 
 N.B.: when using `checkAndSetConfig` function, you can get back the corresponding configuration in **LAST_READ_CONFIG** variable (if it has NOT been found, it is set to *$CONFIG_NOT_FOUND*).
 
-## Information
-Don't hesitate to contribute or to contact me if you want to improve the script.
+## Contributing
+Don't hesitate to [contribute](https://opensource.guide/how-to-contribute/) or to contact me if you want to improve the project.
+You can [report issues or request features](https://github.com/bertrand-benoit/scripts-common/issues) and propose [pull requests](https://github.com/bertrand-benoit/scripts-common/pulls).
 
+## Versioning
+The versioning scheme we use is [SemVer](http://semver.org/).
+
+## Authors
 [Bertrand BENOIT](mailto:contact@bertrand-benoit.net)
+
+## License
+This project is under the GPLv3 License - see the [LICENSE](LICENSE) file for details

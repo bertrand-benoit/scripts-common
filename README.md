@@ -16,23 +16,23 @@ It provides lots of features, using mainly GNU/Bash built-in tools, like:
 -   daemon start/pause/stop
 -   Third party PATH management feature (Java, Ant ...)
 
-## Context
+### Context
 Around 2000, I started writing it for my personal needs, creating lots of scripts at home and at work.
 
 In 2010, I created [Hemera Intelligent System](http://hemerais.bertrand-benoit.net/doc/index.php?title=Hemera:QuickStart) ([Github repository](https://github.com/bertrand-benoit/hemerais)), in which I factorized all my utilities, and developed more robust version.
 
 In 2019, I extracted the Hemera's utilities part, and enhanced it to get it generic, to share it with everyone.
 
-# Usage
+## Usage
 In all the following methods, you just need to source the utilities file.
 ```bash
 source <path to define>/scripts-common/utilities.sh
 ```
 
-## Method 1 - Git submodule
+### Method 1 - Git submodule
 You can add this project as [submodule](https://git-scm.com/book/en/v2/Git-Tools-Submodules) of your own Git repository.
 
-## Method 2 - Clone repository close to yours
+### Method 2 - Clone repository close to yours
 Clone this repository in the parent directory of your own repository.
 
 You can then source the utilities this way:
@@ -41,7 +41,7 @@ currentDir="$( dirname "$( which "$0" )" )"
 source "$( dirname "$currentDir" )/scripts-common/utilities.sh"
 ```
 
-## Method 3 - Clone repository anywhere
+### Method 3 - Clone repository anywhere
 Clone this repository where you want, and define a variable in your `~/.bashrc` file, for instance:
 ```bash
 export UTILITIES_PATH=/complete/path/to/scripts-common/utilities.sh
@@ -52,7 +52,7 @@ Then, in your script, you just need to use this variable:
 source "$UTILITIES_PATH"
 ```
 
-# Environment
+## Environment
 There are some optional variables you can define before sourcing the `utilities.sh`, to tune the system to your needs.
 
 -   **ROOT_DIR**           `<path>`  root directory to consider when performing various check
@@ -70,7 +70,7 @@ There are some optional variables you can define before sourcing the `utilities.
 
 N.B.: when using `checkAndSetConfig` function, you can get back the corresponding configuration in **LAST_READ_CONFIG** variable (if it has NOT been found, it is set to *$CONFIG_NOT_FOUND*).
 
-# Information
+## Information
 Don't hesitate to contribute or to contact me if you want to improve the script.
 
 [Bertrand BENOIT](mailto:contact@bertrand-benoit.net)

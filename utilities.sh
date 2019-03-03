@@ -92,12 +92,6 @@ declare -r ERROR_CONFIG_PATH=106
 declare -r ERROR_CHECK_BIN=107
 declare -r ERROR_CHECK_CONFIG=108
 
-# Bad/unsupported mode.
-declare -r ERROR_MODE=109
-
-# External tool fault (e.g. curl, wget ...).
-declare -r ERROR_EXTERNAL_TOOL=110
-
 # PID Files.
 declare -r ERROR_PID_FILE=120
 

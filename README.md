@@ -25,7 +25,6 @@ In 2010, I created [Hemera Intelligent System](http://hemerais.bertrand-benoit.n
 
 In 2019, I extracted the Hemera's utilities part, and enhanced it to get it generic, to share it with everyone.
 
-
 Usage
 ====
 
@@ -38,7 +37,6 @@ Method 1 - Git submodule
 --
 You can add this project as [submodule](https://git-scm.com/book/en/v2/Git-Tools-Submodules) of your own Git repository.
 
-
 Method 2 - Clone repository close to yours
 --
 Clone this repository in the parent directory of your own repository.
@@ -48,7 +46,6 @@ You can then source the utilities this way:
 currentDir="$( dirname "$( which "$0" )" )"
 source "$( dirname "$currentDir" )/scripts-common/utilities.sh"
 ```
-
 
 Method 3 - Clone repository anywhere
 --
@@ -62,23 +59,22 @@ Then, in your script, you just need to use this variable:
 source "$UTILITIES_PATH"
 ```
 
-
 Environment
 ====
 There are some optional variables you can define before sourcing the `utilities.sh`, to tune the system to your needs.
 
-*   **ROOT_DIR**           `<path>`  root directory to consider when performing various check
-*   **TMP_DIR**            `<path>`  temporary directory where various dump files will be created
-*   **PID_DIR**            `<path>`  directory where PID files will be created to manage daemon feature
-*   **CONFIG_FILE**        `<path>`  path of configuration file to consider
-*   **GLOBAL_CONFIG_FILE** `<path>`  path of GLOBAL configuration file to consider (configuration element will be checked in this one, if NOT found in the configuration file)
-*   **DEBUG_UTILITIES**              `0|1`  activate debug message (not recommended in production)
-*   **VERBOSE**                      `0|1`  activate info/debug message
-*   **CATEGORY**                 `<string>` the category which prepends all messages
-*   **LOG_CONSOLE_OFF**              `0|1`  disable message output on console
-*   **LOG_FILE**                   `<path>` path of the log file
-*   **LOG_FILE_APPEND_MODE**         `0|1`  activate append mode, instead of override one
-*   **MODE_CHECK_CONFIG**   `0|1`  check ALL configuration and then quit (useful to check all the configuration you want, +/- like a dry run)
+-   **ROOT_DIR**           `<path>`  root directory to consider when performing various check
+-   **TMP_DIR**            `<path>`  temporary directory where various dump files will be created
+-   **PID_DIR**            `<path>`  directory where PID files will be created to manage daemon feature
+-   **CONFIG_FILE**        `<path>`  path of configuration file to consider
+-   **GLOBAL_CONFIG_FILE** `<path>`  path of GLOBAL configuration file to consider (configuration element will be checked in this one, if NOT found in the configuration file)
+-   **DEBUG_UTILITIES**              `0|1`  activate debug message (not recommended in production)
+-   **VERBOSE**                      `0|1`  activate info/debug message
+-   **CATEGORY**                 `<string>` the category which prepends all messages
+-   **LOG_CONSOLE_OFF**              `0|1`  disable message output on console
+-   **LOG_FILE**                   `<path>` path of the log file
+-   **LOG_FILE_APPEND_MODE**         `0|1`  activate append mode, instead of override one
+-   **MODE_CHECK_CONFIG**   `0|1`  check ALL configuration and then quit (useful to check all the configuration you want, +/- like a dry run)
 
 
 N.B.: when using `checkAndSetConfig` function, you can get back the corresponding configuration in **LAST_READ_CONFIG** variable (if it has NOT been found, it is set to *$CONFIG_NOT_FOUND*).

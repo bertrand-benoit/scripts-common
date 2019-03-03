@@ -1,6 +1,8 @@
 # scripts-common version 2.0.0
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/f61fd4ae962a42dd93cca6de29ac8c1d)](https://www.codacy.com/app/bertrand-benoit/scripts-common?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=bertrand-benoit/scripts-common&amp;utm_campaign=Badge_Grade)
 
+[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/2583/badge)](https://bestpractices.coreinfrastructure.org/projects/2583)
+
 This is a free common utilities/tool-box for GNU/Bash scripts, you can use for your own scripts.
 
 ## Getting Started

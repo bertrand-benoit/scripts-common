@@ -488,7 +488,8 @@ function getConfigValue() {
     if ! checkConfigValue "$configFileToRead" "$_configKey"; then
       # Prints error message (and exit) only if NOT in "check config and quit" mode.
       ! isCheckModeConfigOnly && errorMessage "Configuration key '$_configKey' NOT found in any of configuration files" $ERROR_CONFIG_VARIOUS
-      printf "configuration key '%b' \E[31mNOT FOUND\E[0m in any of configuration files" "$_configKey" && return $ERROR_CONFIG_VARIOUS
+      [ $DEBUG_UTILITIES -eq 1 ] && printf "configuration key '%b' \E[31mNOT FOUND\E[0m in any of configuration files" "$_configKey"
+      return $ERROR_CONFIG_VARIOUS
     fi
   fi
 

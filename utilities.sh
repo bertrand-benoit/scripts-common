@@ -681,11 +681,13 @@ function checkAvailableValue() {
   [ "$( echo "$1" |grep -cw "$2" )" -eq 1 ]
 }
 
-# usage: matchesOneOf <patterns> <element to check>
+# usage: matchesOneOf <element to check> <patterns>
 function matchesOneOf() {
-  local _patterns="$1" _element="$2"
+  local _element="$1"
+  shift
+  local _patterns=("$@")
 
-  for pattern in $_patterns; do
+  for pattern in "${_patterns[@]}"; do
     [[ "$_element" =~ $pattern ]] && return 0
   done
 

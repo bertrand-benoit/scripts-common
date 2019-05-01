@@ -34,6 +34,16 @@ source <path to define>/scripts-common/utilities.sh
 ### Method 1 - Git submodule
 You can add this project as [submodule](https://git-scm.com/book/en/v2/Git-Tools-Submodules) of your own Git repository.
 
+```bash
+git submodule add git@github.com:bertrand-benoit/scripts-common.git
+```
+
+And then update your script to use it (e.g. if this script is in the root directory of your repository):
+```bash
+currentDir=$( dirname "$( which "$0" )" )
+. "$currentDir/scripts-common/utilities.sh"
+```
+
 ### Method 2 - Clone repository close to yours
 Clone this repository in the parent directory of your own repository.
 

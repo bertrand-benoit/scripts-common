@@ -200,7 +200,8 @@ function checkEnvironment() {
 # usage: checkLSB
 function checkLSB() {
   [ -f "$LSB_INIT_FUNCTONS" ] || errorMessage "Unable to find LSB file $LSB_INIT_FUNCTONS. Please install it." $ERROR_ENVIRONMENT
-  source "$LSB_INIT_FUNCTONS"
+  # shellcheck disable=1090
+  . "$LSB_INIT_FUNCTONS"
 }
 
 # usage: checkLocale
@@ -463,6 +464,51 @@ function checkAndFormatPath() {
 #########################
 ## Functions - Configuration file feature.
 
+# usage: doListConfigKeyValues <config file> [<config key pattern>]
+# N.B.: must NOT be called directly.
+function doListConfigKeyValues() {
+  local _configFile="$1" _configKeyPattern="${2:-.*}"
+
+  grep -v "^[ \t]*#" "$_configFile"|grep -E "^[ \t]*$_configKeyPattern=.*" |sed -e 's/^[ \t]*//'
+}
+
+# usage: doListConfigKeyValues <config file> <config key pattern>
+# N.B.: must NOT be called directly.
+function doListConfigKeys() {
+  local _configFile="$1" _pattern="$2"
+  declare -a configKeyList=()
+
+  # Checks user configuration file.
+  if [ -f "$_configFile" ]; then
+    while IFS= read -r configKey; do
+      configKeyList+=("$configKey")
+    done < <( doListConfigKeyValues "$_configFile" "$_pattern" |sed -e 's/^\([^=]*\)=.*$/\1/;' )
+
+    [ "${#configKeyList[@]}" -gt 0 ] && echo "${configKeyList[@]}"
+  fi
+}
+
+# Lists available configuration key (merging global and user configuration keys).
+# usage: listConfigKeys [<pattern>]
+function listConfigKeys() {
+  local _pattern="${1:-.*}"
+
+  # Reads all configuration key from user configuration file if any.
+  IFS=' ' read -r -a userConfigKeyList <<< "$( doListConfigKeys "${CONFIG_FILE:-$DEFAULT_CONFIG_FILE}" "$_pattern" )"
+
+  # Reads all configuration key from global configuration file if any.
+  IFS=' ' read -r -a globalConfigKeyList <<< "$( doListConfigKeys "${GLOBAL_CONFIG_FILE:-$DEFAULT_GLOBAL_CONFIG_FILE}" "$_pattern" )"
+
+  # Sorts and removes duplicate to create the final configuration key list.
+  declare -a finalConfigKeyList=()
+  while IFS= read -r -d '' x
+  do
+    finalConfigKeyList+=("$x")
+  done < <(printf "%s\0" "${userConfigKeyList[@]}" "${globalConfigKeyList[@]}"|sort -uz)
+
+  echo "${finalConfigKeyList[@]}"
+}
+
 # usage: checkConfigValue <configuration file> <config key>
 function checkConfigValue() {
   local _configFile="$1" _configKey="$2"
@@ -473,7 +519,8 @@ function checkConfigValue() {
     [ "$DEBUG_UTILITIES" -eq 1 ] && printf "Configuration file '%b' not found ... " "$_configFile" >&2
     return 1
   fi
-  [ "$( grep -ce "^$_configKey=" "$_configFile" 2>/dev/null )" -gt 0 ]
+
+  [ "$( doListConfigKeyValues "$_configFile" "$_configKey" |wc -l )" -gt 0 ]
 }
 
 # usage: getConfigValue <config key>
@@ -488,14 +535,14 @@ function getConfigValue() {
     if ! checkConfigValue "$configFileToRead" "$_configKey"; then
       # Prints error message (and exit) only if NOT in "check config and quit" mode.
       ! isCheckModeConfigOnly && errorMessage "Configuration key '$_configKey' NOT found in any of configuration files" $ERROR_CONFIG_VARIOUS
-      [ $DEBUG_UTILITIES -eq 1 ] && printf "configuration key '%b' \E[31mNOT FOUND\E[0m in any of configuration files" "$_configKey"
+      [ "$DEBUG_UTILITIES" -eq 1 ] && printf "configuration key '%b' \E[31mNOT FOUND\E[0m in any of configuration files" "$_configKey"
       return $ERROR_CONFIG_VARIOUS
     fi
   fi
 
   # Gets the value (may be empty).
   # N.B.: in case there is several, takes only the last one (interesting when there is several definition in configuration file).
-  grep -e "^$_configKey=" "$configFileToRead" 2>/dev/null|sed -e 's/^[^=]*=//;s/"//g;' |tail -n 1
+  doListConfigKeyValues "$configFileToRead" "$_configKey"|sed -e 's/^[^=]*=//;s/"//g;' |tail -n 1
   return 0
 }
 

@@ -464,6 +464,8 @@ function checkAndFormatPath() {
 #########################
 ## Functions - Configuration file feature.
 
+# Lists specific <key, value> pairs from specified configuration file, with optional pattern.
+#
 # usage: doListConfigKeyValues <config file> [<config key pattern>]
 # N.B.: must NOT be called directly.
 function doListConfigKeyValues() {
@@ -472,19 +474,28 @@ function doListConfigKeyValues() {
   grep -v "^[ \t]*#" "$_configFile"|grep -E "^[ \t]*$_configKeyPattern=.*" |sed -e 's/^[ \t]*//'
 }
 
-# usage: doListConfigKeyValues <config file> <config key pattern>
-# N.B.: must NOT be called directly.
-function doListConfigKeys() {
-  local _configFile="$1" _pattern="$2"
-  declare -a configKeyList=()
+# Loads available configuration <key, value> (merging global and user configuration files).
+# Result will then be available in global associative array named $LAST_READ_CONFIG_KEY_VALUE_LIST.
+#
+# usage: loadConfigKeyValueList [<search pattern>] [<key remove pattern>]
+# <search pattern>: optional regular expression of keys to consider (by default ALL configuration will be considered)
+# <key remove pattern>: optional refular expression of key's part to remove in the final associative array (can be useful to use pattern matching with remaining part of key).
+function loadConfigKeyValueList() {
+  local _searchPattern="${1:-.*}" _keyRemovePattern="${2:-}"
+  declare -gA LAST_READ_CONFIG_KEY_VALUE_LIST=() # [re]init associative global array
 
-  # Checks user configuration file.
-  if [ -f "$_configFile" ]; then
-    while IFS= read -r configKey; do
-      configKeyList+=("$configKey")
-    done < <( doListConfigKeyValues "$_configFile" "$_pattern" |sed -e 's/^\([^=]*\)=.*$/\1/;' )
+  # Reads all configuration key from global configuration file if any.
+  if [ -f "${GLOBAL_CONFIG_FILE:-$DEFAULT_GLOBAL_CONFIG_FILE}" ]; then
+    while IFS='=' read -r configKey configValue; do
+      LAST_READ_CONFIG_KEY_VALUE_LIST["${configKey//$_keyRemovePattern/}"]="${configValue//\"/}"
+    done < <( doListConfigKeyValues "${GLOBAL_CONFIG_FILE:-$DEFAULT_GLOBAL_CONFIG_FILE}" "$_searchPattern" )
+  fi
 
-    [ "${#configKeyList[@]}" -gt 0 ] && echo "${configKeyList[@]}"
+  # Reads all configuration key from user configuration file if any.
+  if [ -f "${CONFIG_FILE:-$DEFAULT_CONFIG_FILE}" ]; then
+    while IFS='=' read -r configKey configValue; do
+      LAST_READ_CONFIG_KEY_VALUE_LIST["${configKey//$_keyRemovePattern/}"]="${configValue//\"/}"
+    done < <( doListConfigKeyValues "${CONFIG_FILE:-$DEFAULT_CONFIG_FILE}" "$_searchPattern" )
   fi
 }
 
@@ -493,20 +504,8 @@ function doListConfigKeys() {
 function listConfigKeys() {
   local _pattern="${1:-.*}"
 
-  # Reads all configuration key from user configuration file if any.
-  IFS=' ' read -r -a userConfigKeyList <<< "$( doListConfigKeys "${CONFIG_FILE:-$DEFAULT_CONFIG_FILE}" "$_pattern" )"
-
-  # Reads all configuration key from global configuration file if any.
-  IFS=' ' read -r -a globalConfigKeyList <<< "$( doListConfigKeys "${GLOBAL_CONFIG_FILE:-$DEFAULT_GLOBAL_CONFIG_FILE}" "$_pattern" )"
-
-  # Sorts and removes duplicate to create the final configuration key list.
-  declare -a finalConfigKeyList=()
-  while IFS= read -r -d '' x
-  do
-    finalConfigKeyList+=("$x")
-  done < <(printf "%s\0" "${userConfigKeyList[@]}" "${globalConfigKeyList[@]}"|sort -uz)
-
-  echo "${finalConfigKeyList[@]}"
+  loadConfigKeyValueList "$_pattern"
+  echo "${!LAST_READ_CONFIG_KEY_VALUE_LIST[@]}"
 }
 
 # usage: checkConfigValue <configuration file> <config key>

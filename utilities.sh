@@ -770,6 +770,51 @@ function getURLContents() {
   return 0
 }
 
+# usage: isNumber <string>
+# Returns true if specified string matches a number, false otherwise.
+function isNumber() {
+  [[ "$1" =~ ^[[:digit:]]+$ ]]
+}
+
+# usage: isCompoundedNumber <string>
+# Returns true if it is a single number OR a compounded number.
+function isCompoundedNumber() {
+  [[ "$1" =~ ^[[:digit:]]+-*[0-9]*$ ]]
+}
+
+# Usage: removeAllSpecifiedPartsFromString <string> <parts> [<case-insensitive>]
+#  <string>           string to manage (can be a [file]Name/Label or anything else)
+#  <parts>            regular expressions separated by | of parts to remove
+#  <case-insensitive> activate case insensitivity (0 by default)
+# Returns the formatted name.
+function removeAllSpecifiedPartsFromString() {
+  local _string="$1" _filters="$2" _caseInsensitive="${3:-0}" _sedOptions="g"
+  [ "$_caseInsensitive" -eq 1 ] && _sedOptions="i$_sedOptions"
+
+  # Removes label's part exactly matching.
+  while IFS= read -r -d '|' filterPattern; do
+    [ -z "$filterPattern" ] && continue
+    _string=$( sed -E "s/$filterPattern//$_sedOptions;" <<< "$_string" )
+  done <<< "$_filters|"
+
+  # Returns the formatted [file]Name/Label.
+  echo "$_string"
+}
+
+# Usage: extractNumberSequence <string>
+#  <string>: string from which to extract number sequence
+# Returns the found number sequence.
+function extractNumberSequence() {
+  local _string="$1" _result=""
+
+  _result=$( sed -e 's/^[^0-9]*\([sS]*[0-9][0-9]*\)[ \t]*[-aàep&][ \te0]*\([1-9][0-9]*\)[^0-9]*$/\1-\2/ig;' <<< "$_string" \
+            |sed -e 's/^[^0-9]*\([0-9]-*[0-9]*\)[^0-9]*$/\1/g;')
+
+  [ "$DEBUG_UTILITIES" -eq 1 ] && printf "Extracted number sequence from name '%b' => '%b'" "$_string" "$_result" >&2
+
+  # Returns the number sequence.
+  echo "$_result"
+}
 
 #########################
 ## Functions - PID File Feature

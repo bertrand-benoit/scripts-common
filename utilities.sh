@@ -16,6 +16,7 @@
 #  DEBUG_UTILITIES              0|1  activate debug message (not recommended in production)
 #  VERBOSE                      0|1  activate info message (not recommended in production)
 #  CATEGORY                 <string> the category which prepends all messages
+#  DISABLE_ERROR_TRAP           0|1  disable TRAP on error (recommended only for Tests project where assert leads to 'error')
 #  LOG_CONSOLE_OFF              0|1  disable message output on console
 #  LOG_FILE                   <path> path of the log file
 #  LOG_FILE_APPEND_MODE         0|1  activate append mode, instead of override one
@@ -36,7 +37,7 @@ set -o nounset
 set -o errtrace
 
 # Dumps function call in case of error, or when exiting with something else than status 0.
-trap '_status=$?; dumpFuncCall $_status' ERR
+[ "${DISABLE_ERROR_TRAP:-0}" -eq 0 ] && trap '_status=$?; dumpFuncCall $_status' ERR
 #trap '_status=$?; [ $_status -ne 0 ] && dumpFuncCall $_status' EXIT
 
 #########################

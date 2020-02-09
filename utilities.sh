@@ -158,15 +158,14 @@ function dumpFuncCall() {
   [ "${FUNCNAME[1]}" = "errorMessage" ] && return 0
 
   # Prepares message begin.
-  message="Script failure with status $_exitStatus, stacktrace:\n"
-
-  # Disables call when it corresponds to the warning exit status of a previous call to this function.
-  [ "$_funcNameCount" -le 2 ] && warning "$message${FUNCNAME[1]}:${BASH_LINENO[1]}" && return 0
+  message="Script failure with status $_exitStatus, stacktrace:"
 
   # Starts to 1 to avoid THIS function name, and stops before the last one to avoid "main".
-  for index in $( eval echo "{1..$((_funcNameCount-2))}" ); do
-    [ "$index" -ge 2 ] && message="$message\n"
-    message="$message at ${BASH_SOURCE[$index]}:${BASH_LINENO[$index]}\tcalled\t#${FUNCNAME[$index]}"
+  local _verb="triggered"
+  for index in $( eval echo "{0..$((_funcNameCount-2))}" ); do
+    message="$message\n"
+    message="$message at ${BASH_SOURCE[$index+1]}:${BASH_LINENO[$index]}\t\t$_verb\t#${FUNCNAME[$index]}"
+    _verb="called\t"
   done
 
   warning "$message"
@@ -308,14 +307,14 @@ function writeMessageSL() {
 
 # usage: info <message> [<0 or 1>]
 # Shows message only if $VERBOSE is ON.
-# Stays on the same line of "0" has been specified
+# Stays on the same line if "0" has been specified
 function info() {
   _doWriteMessage $LOG_LEVEL_INFO "$1" "${2:-1}"
 }
 
 # usage: warning <message> [<0 or 1>]
 # Shows warning message.
-# Stays on the same line of "0" has been specified
+# Stays on the same line if "0" has been specified
 function warning() {
   _doWriteMessage $LOG_LEVEL_WARNING "$1" "${2:-1}" >&2
 }

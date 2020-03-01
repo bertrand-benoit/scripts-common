@@ -325,6 +325,8 @@ function errorMessage() {
   _doWriteMessage $LOG_LEVEL_ERROR "$1" 1 "${2:-$ERROR_DEFAULT}" >&2
 }
 
+# This version of scripts-common is deprecated, new Gitlab version must be used.
+warning "Deprecated: your scripts-common version is deprecated. You should switch to newer version: https://gitlab.com/bertrand-benoit/scripts-common"
 
 #########################
 ## Functions - [Check]Path Feature

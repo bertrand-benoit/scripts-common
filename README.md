@@ -1,3 +1,5 @@
+:warning: This project is now hosted on [Gitlab](https://gitlab.com/bertrand-benoit/scripts-common); switch to it to get newer versions.
+
 # scripts-common version 2.0.0
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/f61fd4ae962a42dd93cca6de29ac8c1d)](https://www.codacy.com/app/bertrand-benoit/scripts-common?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=bertrand-benoit/scripts-common&amp;utm_campaign=Badge_Grade)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/2583/badge)](https://bestpractices.coreinfrastructure.org/projects/2583)
@@ -21,7 +23,7 @@ This is a free common utilities/tool-box for GNU/Bash scripts, you can use for y
 ## Context
 Around 2000, I started writing it for my personal needs, creating lots of scripts at home and at work.
 
-In 2010, I created [Hemera Intelligent System](http://hemerais.bertrand-benoit.net/doc/index.php?title=Hemera:QuickStart) ([Github repository](https://github.com/bertrand-benoit/hemerais)), in which I factorized all my utilities, and developed more robust version.
+In 2010, I created [Hemera Intelligent System](https://gitlab.com/bertrand-benoit/hemerais/wikis) ([Repository](https://gitlab.com/bertrand-benoit/hemerais)), in which I factorized all my utilities, and developed more robust version.
 
 In 2019, I extracted the Hemera's utilities part, and enhanced it to get it generic, to share it with everyone.
 
@@ -35,7 +37,7 @@ source <path to define>/scripts-common/utilities.sh
 You can add this project as [submodule](https://git-scm.com/book/en/v2/Git-Tools-Submodules) of your own Git repository.
 
 ```bash
-git submodule add git@github.com:bertrand-benoit/scripts-common.git
+git submodule add git@gitlab.com:bertrand-benoit/scripts-common.git
 ```
 
 And then update your script to use it (e.g. if this script is in the root directory of your repository):
@@ -84,7 +86,7 @@ N.B.: when using `checkAndSetConfig` function, you can get back the correspondin
 
 ## Contributing
 Don't hesitate to [contribute](https://opensource.guide/how-to-contribute/) or to contact me if you want to improve the project.
-You can [report issues or request features](https://github.com/bertrand-benoit/scripts-common/issues) and propose [pull requests](https://github.com/bertrand-benoit/scripts-common/pulls).
+You can [report issues or request features](https://gitlab.com/bertrand-benoit/scripts-common/issues) and propose [merge requests](https://gitlab.com/bertrand-benoit/scripts-common/merge_requests).
 
 ## Versioning
 The versioning scheme we use is [SemVer](http://semver.org/).
